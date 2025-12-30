@@ -49,15 +49,17 @@ jobs:
       - name: Package binary (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          if [ ! -f "target/${{ matrix.target }}/release/ai-translate" ]; then echo "binary not found"; exit 1; fi
-          tar -czf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release ai-translate
+          BIN_PATH="target/${{ matrix.target }}/release/ai-translate"
+          if [ ! -f "$BIN_PATH" ]; then echo "binary not found at $BIN_PATH"; exit 1; fi
+          tar -czf ${{ matrix.artifact }} -C "$(dirname "$BIN_PATH")" "$(basename "$BIN_PATH")"
 
       - name: Package binary (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          if (-Not (Test-Path "target\\${{ matrix.target }}\\release\\ai-translate.exe")) { throw 'binary missing' }
-          Compress-Archive -Path "target\\${{ matrix.target }}\\release\\ai-translate.exe" -DestinationPath "${{ matrix.artifact }}"
+          $binPath = "target\\${{ matrix.target }}\\release\\ai-translate.exe"
+          if (-Not (Test-Path $binPath)) { throw "binary not found at $binPath" }
+          Compress-Archive -Path $binPath -DestinationPath "${{ matrix.artifact }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
