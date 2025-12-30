@@ -32,19 +32,19 @@ cargo build --release
 
 ## Download Pre-built Binaries
 
-You can download pre-built binaries from the [Releases](https://github.com/yourusername/ai-translate/releases) page.
+You can download pre-built binaries from the [Releases](https://github.com/AnlangA/ai-T/releases) page.
 
 ### Linux (x86_64)
 
 ```bash
-wget https://github.com/yourusername/ai-translate/releases/latest/download/ai-translate-linux-x64.tar.gz
-tar xzf ai-translate-linux-x64.tar.gz
+wget https://github.com/AnlangA/ai-T/releases/latest/download/ai-translate-linux-x86_64.tar.gz
+tar xzf ai-translate-linux-x86_64.tar.gz
 ./ai-translate
 ```
 
 ### Windows (x86_64)
 
-Download `ai-translate-windows-x64.zip` from the releases page, extract it, and run `ai-translate.exe`.
+Download `ai-translate-windows-x86_64.zip` from the releases page, extract it, and run `ai-translate.exe`.
 
 ## Usage
 
