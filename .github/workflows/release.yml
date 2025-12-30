@@ -48,12 +48,16 @@ jobs:
 
       - name: Package binary (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: tar -czf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release ai-translate
+        run: |
+          test -f target/${{ matrix.target }}/release/ai-translate
+          tar -czf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release ai-translate
 
       - name: Package binary (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        run: Compress-Archive -Path "target\\${{ matrix.target }}\\release\\ai-translate.exe" -DestinationPath "${{ matrix.artifact }}"
+        run: |
+          if (-Not (Test-Path "target\\${{ matrix.target }}\\release\\ai-translate.exe")) { throw 'binary missing' }
+          Compress-Archive -Path "target\\${{ matrix.target }}\\release\\ai-translate.exe" -DestinationPath "${{ matrix.artifact }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
