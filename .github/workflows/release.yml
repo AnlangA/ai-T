@@ -49,7 +49,7 @@ jobs:
       - name: Package binary (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          test -f target/${{ matrix.target }}/release/ai-translate
+          if [ ! -f "target/${{ matrix.target }}/release/ai-translate" ]; then echo "binary not found"; exit 1; fi
           tar -czf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release ai-translate
 
       - name: Package binary (Windows)
@@ -76,6 +76,6 @@ jobs:
           path: artifacts
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: artifacts/**/*
