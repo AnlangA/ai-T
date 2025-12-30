@@ -2,10 +2,15 @@
 name = "ai-translate"
 version = "0.1.0"
 edition = "2024"
+authors = ["Your Name <your.email@example.com>"]
+description = "A cross-platform AI translation tool with streaming support"
+license = "MIT"
+repository = "https://github.com/yourusername/ai-translate"
+homepage = "https://github.com/yourusername/ai-translate"
 
 [dependencies]
 egui = "0.33"
-eframe = "0.33"
+eframe = { version = "0.33", features = ["persistence"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

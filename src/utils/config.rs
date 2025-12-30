@@ -75,4 +75,18 @@ impl AppConfig {
             config
         })
     }
+
+    pub fn from_storage(storage: &dyn eframe::Storage) -> Self {
+        if let Some(json) = storage.get_string("app_config") {
+            serde_json::from_str(&json).unwrap_or_default()
+        } else {
+            Self::default()
+        }
+    }
+
+    pub fn save_to_storage(&self, storage: &mut dyn eframe::Storage) {
+        if let Ok(json) = serde_json::to_string(self) {
+            storage.set_string("app_config", json);
+        }
+    }
 }

@@ -26,7 +26,10 @@ pub struct TranslateApp {
 
 impl TranslateApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let config = AppConfig::load_or_default(&cc.egui_ctx);
+        let config = cc.storage
+            .and_then(|s| Some(AppConfig::from_storage(s)))
+            .unwrap_or_else(|| AppConfig::load_or_default(&cc.egui_ctx));
+
         let theme = Theme {
             dark: config.dark_theme,
             font_size: config.font_size,
@@ -160,9 +163,8 @@ impl eframe::App for TranslateApp {
 
         if let Some(api_key) = api_key_to_save {
             self.config.api_key = api_key.clone();
-            self.config.target_language = self.sidebar.get_target_language().clone();
-            self.config.save_to_memory(ctx);
         }
+        self.config.target_language = self.sidebar.get_target_language().clone();
 
         if translate_requested {
             let api_key = self.sidebar.get_api_key();
@@ -180,9 +182,12 @@ impl eframe::App for TranslateApp {
             self.theme.dark = new_dark_theme;
             self.theme.apply_style(ctx);
             self.theme.set_visuals(ctx);
-            self.config.save_to_memory(ctx);
         }
 
         self.display.ui(ctx, self.theme.font_size);
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.config.save_to_storage(storage);
     }
 }
