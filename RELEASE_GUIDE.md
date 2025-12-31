@@ -9,11 +9,11 @@ If you recently triggered the release workflow manually and are looking for the 
 ### Option 1: Download from GitHub Actions (Current Method)
 
 1. Go to the [Actions tab](https://github.com/AnlangA/ai-T/actions/workflows/release.yml)
-2. Click on the most recent "Release" workflow run (the one from Dec 31, 2025)
+2. Click on the most recent "Release" workflow run
 3. Scroll down to the **Artifacts** section at the bottom of the page
 4. Download:
-   - `ai-translate-linux-x86_64.tar.gz` - Linux executable (24.6 MB)
-   - `ai-translate-windows-x86_64.zip` - Windows executable (21.2 MB)
+   - `ai-translate-linux-x86_64.tar.gz` - Linux executable (~24 MB)
+   - `ai-translate-windows-x86_64.zip` - Windows executable (~21 MB)
 
 **Note**: These artifacts are available for 90 days from the workflow run date.
 
