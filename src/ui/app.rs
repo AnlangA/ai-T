@@ -198,6 +198,10 @@ impl eframe::App for TranslateApp {
         }
 
         self.display.ui(ctx, self.theme.font_size);
+
+        // Request repaint to ensure continuous UI updates
+        // This enables smooth animations (e.g., spinner) without requiring mouse movement
+        ctx.request_repaint();
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
