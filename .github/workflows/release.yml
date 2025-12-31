@@ -93,8 +93,8 @@ jobs:
           files: artifacts/**/*
           body: |
             This is a development build triggered manually.
-            
+
             Commit: ${{ github.sha }}
             Branch: ${{ github.ref_name }}
-            
+
             **Note:** This is a draft release. Download the artifacts below.
