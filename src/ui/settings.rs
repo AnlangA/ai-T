@@ -47,10 +47,12 @@ impl SettingsPanel {
                     ui.label("Font Size:");
                     ui.add_space(5.0);
 
-                    ui.add(Slider::new(&mut self.font_size, 12.0..=24.0)
-                        .step_by(1.0)
-                        .suffix(" px")
-                        .show_value(true));
+                    ui.add(
+                        Slider::new(&mut self.font_size, 12.0..=24.0)
+                            .step_by(1.0)
+                            .suffix(" px")
+                            .show_value(true),
+                    );
                     ui.add_space(10.0);
 
                     ui.label("Theme:");
