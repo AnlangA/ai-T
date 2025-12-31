@@ -21,13 +21,17 @@ impl Theme {
         // Load STSong for Chinese and other CJK languages
         fonts.font_data.insert(
             "stsong".to_owned(),
-            std::sync::Arc::new(egui::FontData::from_static(include_bytes!("../../fonts/STSong.ttf"))),
+            std::sync::Arc::new(egui::FontData::from_static(include_bytes!(
+                "../../fonts/STSong.ttf"
+            ))),
         );
 
         // Load Noto Serif KR for Korean language support
         fonts.font_data.insert(
             "noto_serif_kr".to_owned(),
-            std::sync::Arc::new(egui::FontData::from_static(include_bytes!("../../fonts/NotoSerifKR-VariableFont_wght.ttf"))),
+            std::sync::Arc::new(egui::FontData::from_static(include_bytes!(
+                "../../fonts/NotoSerifKR-VariableFont_wght.ttf"
+            ))),
         );
 
         fonts

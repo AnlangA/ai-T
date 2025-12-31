@@ -1,5 +1,11 @@
+//! Main display panel for showing source text and translations.
+//!
+//! This module provides the central UI component that displays
+//! the input text and streaming translation results.
+
 use egui::*;
 
+/// Display panel showing source text and translation results.
 #[derive(Default)]
 pub struct DisplayPanel {
     input_text: String,
@@ -8,30 +14,44 @@ pub struct DisplayPanel {
 }
 
 impl DisplayPanel {
+    /// Sets the input text to display.
     pub fn set_input(&mut self, text: String) {
         self.input_text = text;
     }
 
+    /// Appends a chunk of translation text (for streaming).
     pub fn update_translation(&mut self, chunk: String) {
         self.translation.push_str(&chunk);
     }
 
+    /// Clears the translation text.
     pub fn clear_translation(&mut self) {
         self.translation.clear();
     }
 
+    /// Sets whether a translation is in progress.
     pub fn set_translating(&mut self, translating: bool) {
         self.is_translating = translating;
     }
 
+    /// Creates a styled frame for text display.
     fn create_text_frame(&self, ui: &Ui) -> Frame {
         Frame::NONE
-            .stroke(Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color))
+            .stroke(Stroke::new(
+                1.0,
+                ui.visuals().widgets.noninteractive.bg_stroke.color,
+            ))
             .fill(ui.visuals().extreme_bg_color)
             .inner_margin(Margin::symmetric(12, 12))
             .corner_radius(4.0)
     }
 
+    /// Renders the display panel UI.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - The egui context
+    /// * `font_size` - Font size for text display
     pub fn ui(&mut self, ctx: &Context, font_size: f32) {
         CentralPanel::default().show(ctx, |ui| {
             ui.add_space(16.0);

@@ -26,7 +26,8 @@ pub struct TranslateApp {
 
 impl TranslateApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let config = cc.storage
+        let config = cc
+            .storage
             .map(AppConfig::from_storage)
             .unwrap_or_else(|| AppConfig::load_or_default(&cc.egui_ctx));
 

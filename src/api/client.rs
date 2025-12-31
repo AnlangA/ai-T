@@ -1,23 +1,38 @@
+//! API client for Z.AI translation service.
+//!
+//! This module provides a client for communicating with the Z.AI API,
+//! supporting streaming responses for real-time translation.
+
 use crate::error::{Result, TranslationError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+/// A chat message in the API request/response.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatMessage {
+    /// Role of the message sender (e.g., "user", "assistant")
     pub role: String,
+    /// Content of the message
     pub content: String,
 }
 
+/// Request structure for chat completion API.
 #[derive(Debug, Serialize)]
 pub struct ChatRequest {
+    /// Model name to use for completion
     pub model: String,
+    /// List of chat messages
     pub messages: Vec<ChatMessage>,
+    /// Whether to stream the response
     pub stream: bool,
+    /// Thinking configuration for the model
     pub thinking: Option<ThinkingConfig>,
 }
 
+/// Configuration for model thinking behavior.
 #[derive(Debug, Serialize)]
 pub struct ThinkingConfig {
+    /// Type of thinking mode
     #[serde(rename = "type")]
     pub thinking_type: String,
 }
@@ -80,6 +95,7 @@ pub struct Delta {
     pub content: Option<String>,
 }
 
+/// Z.AI API client for streaming chat completions.
 #[derive(Clone)]
 pub struct ApiClient {
     client: Client,
@@ -88,12 +104,17 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
+    /// Creates a new API client with the given API key.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_key` - The Z.AI API key for authentication
     pub fn new(api_key: String) -> Self {
         tracing::debug!("Creating new API client");
         if api_key.is_empty() {
             tracing::warn!("API key is empty");
         }
-        
+
         ApiClient {
             client: Client::new(),
             api_key,
@@ -101,6 +122,15 @@ impl ApiClient {
         }
     }
 
+    /// Streams chat completion responses from the API.
+    ///
+    /// # Arguments
+    ///
+    /// * `messages` - List of chat messages to send to the API
+    ///
+    /// # Returns
+    ///
+    /// A receiver channel that yields streaming chunks of the response
     pub async fn stream_chat(
         &self,
         messages: Vec<ChatMessage>,
@@ -134,10 +164,13 @@ impl ApiClient {
                 Ok(response) => {
                     let status = response.status();
                     tracing::debug!("Received response with status: {}", status);
-                    
+
                     if !status.is_success() {
                         tracing::error!("API returned error status: {}", status);
-                        let _ = tx.send(Err(TranslationError::ApiError(format!("API error: {}", status))));
+                        let _ = tx.send(Err(TranslationError::ApiError(format!(
+                            "API error: {}",
+                            status
+                        ))));
                         return;
                     }
 
@@ -162,7 +195,10 @@ impl ApiClient {
 
                                     if let Some(json_str) = line.strip_prefix("data: ") {
                                         if json_str.trim() == "[DONE]" {
-                                            tracing::debug!("Stream completed with {} chunks", chunk_count);
+                                            tracing::debug!(
+                                                "Stream completed with {} chunks",
+                                                chunk_count
+                                            );
                                             let _ = tx.send(Ok(String::new()));
                                             return;
                                         }
@@ -170,14 +206,22 @@ impl ApiClient {
                                         match serde_json::from_str::<StreamChunk>(json_str) {
                                             Ok(chunk) => {
                                                 if let Some(choice) = chunk.choices.first()
-                                                    && let Some(content) = &choice.delta.content {
-                                                        chunk_count += 1;
-                                                        tracing::trace!("Received chunk {}: {} bytes", chunk_count, content.len());
-                                                        let _ = tx.send(Ok(content.clone()));
-                                                    }
+                                                    && let Some(content) = &choice.delta.content
+                                                {
+                                                    chunk_count += 1;
+                                                    tracing::trace!(
+                                                        "Received chunk {}: {} bytes",
+                                                        chunk_count,
+                                                        content.len()
+                                                    );
+                                                    let _ = tx.send(Ok(content.clone()));
+                                                }
                                             }
                                             Err(e) => {
-                                                tracing::warn!("Failed to parse stream chunk: {}", e);
+                                                tracing::warn!(
+                                                    "Failed to parse stream chunk: {}",
+                                                    e
+                                                );
                                             }
                                         }
                                     }
@@ -187,7 +231,10 @@ impl ApiClient {
                             }
                             Err(e) => {
                                 tracing::error!("Stream error: {}", e);
-                                let _ = tx.send(Err(TranslationError::StreamError(format!("Stream error: {}", e))));
+                                let _ = tx.send(Err(TranslationError::StreamError(format!(
+                                    "Stream error: {}",
+                                    e
+                                ))));
                                 return;
                             }
                         }

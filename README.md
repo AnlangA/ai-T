@@ -4,11 +4,41 @@ A cross-platform AI-powered translation tool built with Rust and egui.
 
 ## Features
 
-- Real-time translation with streaming support
-- Multiple language support (10+ languages)
-- Customizable font size and theme (dark/light mode)
-- Persistent configuration (settings saved automatically)
-- Clean and intuitive UI built with egui
+- **Real-time translation with streaming support** - See translations appear as they are generated
+- **Multiple language support** - 10+ languages including English, Chinese, Japanese, Korean, and more
+- **Customizable UI** - Adjustable font size and theme (dark/light mode)
+- **Responsive layout** - Translation window scales with app size
+- **Persistent configuration** - Settings saved automatically between sessions
+- **Structured logging** - Comprehensive logging with RUST_LOG support
+- **Clean and intuitive UI** - Built with egui for a native feel
+
+## Architecture
+
+The application follows modern Rust best practices:
+
+- **Error Handling**: Custom error types using `thiserror`
+- **Logging**: Structured logging with `tracing` and `tracing-subscriber`
+- **Async Runtime**: Tokio for async operations and streaming
+- **Type Safety**: Strong typing throughout with Result types
+- **Testing**: Comprehensive unit tests for core functionality
+
+## Logging
+
+The application supports the `RUST_LOG` environment variable for controlling log output:
+
+```bash
+# Default (info level)
+./ai-translate
+
+# Debug level
+RUST_LOG=debug ./ai-translate
+
+# Trace level for detailed debugging
+RUST_LOG=trace ./ai-translate
+
+# Module-specific logging
+RUST_LOG=ai_translate::api=debug ./ai-translate
+```
 
 ## Building from Source
 
@@ -79,14 +109,39 @@ Settings are automatically saved and restored between sessions:
 # Run in debug mode
 cargo run
 
+# Run with logging
+RUST_LOG=debug cargo run
+
 # Run tests
 cargo test
+
+# Run tests with output
+cargo test -- --nocapture
 
 # Format code
 cargo fmt
 
 # Run linter
 cargo clippy
+
+# Run linter with auto-fix
+cargo clippy --fix
+```
+
+## Testing
+
+The project includes comprehensive unit tests:
+
+```bash
+# Run all tests
+cargo test
+
+# Run tests for a specific module
+cargo test config
+cargo test api
+
+# Run with verbose output
+cargo test -- --nocapture --test-threads=1
 ```
 
 ## License
