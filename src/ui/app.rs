@@ -4,6 +4,7 @@ use crate::ui::display::DisplayPanel;
 use crate::ui::settings::SettingsPanel;
 use crate::ui::sidebar::Sidebar;
 use crate::ui::theme::Theme;
+use crate::utils::cache::TranslationCache;
 use crate::utils::config::AppConfig;
 use crate::utils::logger::Logger;
 use eframe::egui;
@@ -17,6 +18,7 @@ pub struct TranslateApp {
     theme: Theme,
     settings: SettingsPanel,
     logger: Option<Arc<Logger>>,
+    cache: Arc<TranslationCache>,
     translator: Option<Arc<Translator>>,
     is_translating: bool,
     ui_tx: UnboundedSender<UiMessage>,
@@ -47,6 +49,7 @@ impl TranslateApp {
         let settings = SettingsPanel::new(config.font_size, config.dark_theme);
 
         let logger = Logger::new("translations.log").ok().map(Arc::new);
+        let cache = Arc::new(TranslationCache::default());
 
         let (ui_tx, ui_rx) = mpsc::unbounded_channel();
 
@@ -61,6 +64,7 @@ impl TranslateApp {
             theme,
             settings,
             logger,
+            cache,
             translator: None,
             is_translating: false,
             ui_tx,
@@ -77,7 +81,7 @@ impl TranslateApp {
 
         tracing::info!("Starting new translation");
 
-        let translator = Arc::new(Translator::new(api_key));
+        let translator = Arc::new(Translator::new(api_key, self.cache.clone()));
         self.translator = Some(translator.clone());
 
         let source_text = self.sidebar.get_source_text();
