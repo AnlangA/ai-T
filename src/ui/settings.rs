@@ -29,12 +29,10 @@ impl SettingsPanel {
         let mut theme_changed = None;
         let mut close_requested = false;
 
-        let mut should_show = self.show_panel;
-
         Window::new("Settings")
             .collapsible(true)
             .resizable(false)
-            .open(&mut should_show)
+            .open(&mut self.show_panel)
             .default_size([300.0, 280.0])
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {

@@ -165,7 +165,7 @@ impl eframe::App for TranslateApp {
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("⚙️Settings").clicked() {
+                        if ui.button("⚙ Settings").clicked() {
                             self.settings.toggle_panel();
                         }
                     });
