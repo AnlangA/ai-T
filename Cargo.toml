@@ -5,8 +5,8 @@ edition = "2024"
 authors = ["Your Name <your.email@example.com>"]
 description = "A cross-platform AI translation tool with streaming support"
 license = "MIT"
-repository = "https://github.com/yourusername/ai-translate"
-homepage = "https://github.com/yourusername/ai-translate"
+repository = "https://github.com/AnlangA/ai-T"
+homepage = "https://github.com/AnlangA/ai-T"
 
 [dependencies]
 egui = "0.33"
