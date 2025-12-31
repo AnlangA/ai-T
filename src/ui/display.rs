@@ -36,8 +36,9 @@ impl DisplayPanel {
         CentralPanel::default().show(ctx, |ui| {
             ui.add_space(16.0);
 
+            // Calculate responsive heights based on available space
             let available_height = ui.available_height() - 20.0;
-            let panel_height = (available_height / 2.0) - 8.0;
+            let panel_height = (available_height / 2.0).max(150.0) - 16.0; // Ensure minimum height
 
             ui.vertical(|ui| {
                 ui.label(RichText::new("Source Text").strong().size(font_size * 1.1));
@@ -47,6 +48,7 @@ impl DisplayPanel {
                     ScrollArea::vertical()
                         .max_height(panel_height)
                         .id_salt("source_scroll")
+                        .auto_shrink([false, false])
                         .show(ui, |ui| {
                             let mut source_edit = self.input_text.clone();
                             TextEdit::multiline(&mut source_edit)
@@ -68,6 +70,8 @@ impl DisplayPanel {
                     ScrollArea::vertical()
                         .max_height(panel_height)
                         .id_salt("translation_scroll")
+                        .auto_shrink([false, false])
+                        .stick_to_bottom(true) // Auto-scroll to bottom as new content arrives
                         .show(ui, |ui| {
                             let mut display_text = self.translation.clone();
                             if self.is_translating && display_text.is_empty() {

@@ -27,7 +27,7 @@ pub struct TranslateApp {
 impl TranslateApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let config = cc.storage
-            .and_then(|s| Some(AppConfig::from_storage(s)))
+            .map(AppConfig::from_storage)
             .unwrap_or_else(|| AppConfig::load_or_default(&cc.egui_ctx));
 
         let theme = Theme {
@@ -70,14 +70,23 @@ impl TranslateApp {
 
     pub fn start_translation(&mut self, api_key: String) {
         if self.is_translating {
+            tracing::warn!("Translation already in progress, ignoring request");
             return;
         }
+
+        tracing::info!("Starting new translation");
 
         let translator = Arc::new(Translator::new(api_key));
         self.translator = Some(translator.clone());
 
         let source_text = self.sidebar.get_source_text();
         let target_language = self.sidebar.get_target_language();
+
+        tracing::debug!(
+            source_length = source_text.len(),
+            target_language = %target_language,
+            "Translation parameters"
+        );
 
         self.display.clear_translation();
         self.is_translating = true;
@@ -100,6 +109,7 @@ impl TranslateApp {
                         let _ = ui_tx.send(UiMessage::UpdateTranslation(chunk));
                     }
                     Err(e) => {
+                        tracing::error!("Translation error: {}", e);
                         let _ = ui_tx.send(UiMessage::Error(e.to_string()));
                         break;
                     }
@@ -118,12 +128,13 @@ impl TranslateApp {
                         ctx.request_repaint();
                     }
                     UiMessage::Error(err) => {
-                        eprintln!("Translation error: {}", err);
+                        tracing::error!("UI received translation error: {}", err);
                         self.display
                             .update_translation(format!("\n\nError: {}", err));
                         ctx.request_repaint();
                     }
                     UiMessage::TranslationComplete => {
+                        tracing::info!("Translation completed successfully");
                         self.is_translating = false;
                         self.display.set_translating(false);
 

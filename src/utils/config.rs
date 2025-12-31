@@ -90,3 +90,44 @@ impl AppConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = AppConfig::default();
+        assert_eq!(config.api_key, "");
+        assert_eq!(config.target_language, "English");
+        assert_eq!(config.font_size, 16.0);
+        assert!(config.dark_theme);
+    }
+
+    #[test]
+    fn test_supported_languages() {
+        let languages = AppConfig::get_supported_languages();
+        assert!(languages.len() >= 10);
+        assert!(languages.contains(&"English"));
+        assert!(languages.contains(&"中文"));
+        assert!(languages.contains(&"日本語"));
+    }
+
+    #[test]
+    fn test_serialization() {
+        let config = AppConfig {
+            api_key: "test_key".to_string(),
+            target_language: "中文".to_string(),
+            font_size: 18.0,
+            dark_theme: false,
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: AppConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(config.api_key, deserialized.api_key);
+        assert_eq!(config.target_language, deserialized.target_language);
+        assert_eq!(config.font_size, deserialized.font_size);
+        assert_eq!(config.dark_theme, deserialized.dark_theme);
+    }
+}

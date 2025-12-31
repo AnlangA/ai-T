@@ -1,4 +1,5 @@
 use crate::api::client::{ApiClient, ChatMessage};
+use crate::error::Result;
 
 pub struct Translator {
     client: ApiClient,
@@ -6,6 +7,7 @@ pub struct Translator {
 
 impl Translator {
     pub fn new(api_key: String) -> Self {
+        tracing::info!("Creating translator with API key");
         Translator {
             client: ApiClient::new(api_key),
         }
@@ -15,10 +17,14 @@ impl Translator {
         &self,
         text: String,
         target_language: String,
-    ) -> tokio::sync::mpsc::UnboundedReceiver<
-        Result<String, Box<dyn std::error::Error + Send + Sync>>,
-    > {
+    ) -> tokio::sync::mpsc::UnboundedReceiver<Result<String>> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+        tracing::info!(
+            target_language = %target_language,
+            text_length = text.len(),
+            "Starting translation"
+        );
 
         let prompt = format!(
             "Translate the following text to {}. Only output the translation, nothing else:\n\n{}",
@@ -38,6 +44,8 @@ impl Translator {
             while let Some(result) = stream_rx.recv().await {
                 let _ = tx.send(result);
             }
+            
+            tracing::debug!("Translation stream completed");
         });
 
         rx

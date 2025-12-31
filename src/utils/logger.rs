@@ -9,6 +9,7 @@ pub struct Logger {
 
 impl Logger {
     pub fn new(path: &str) -> std::io::Result<Self> {
+        tracing::info!("Initializing translation logger at: {}", path);
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         Ok(Logger {
             file: Mutex::new(file),
@@ -17,6 +18,17 @@ impl Logger {
 
     pub fn log(&self, source_lang: &str, target_lang: &str, source_text: &str, translated: &str) {
         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
+        
+        // Log to tracing as well
+        tracing::info!(
+            source_language = source_lang,
+            target_language = target_lang,
+            source_length = source_text.len(),
+            translated_length = translated.len(),
+            "Translation completed"
+        );
+        
+        // Log to file
         let log_entry = format!(
             "[{}]\nSource Language: {}\nTarget Language: {}\nSource Text: {}\nTranslation: {}\n{}\n",
             timestamp,
