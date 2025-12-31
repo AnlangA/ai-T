@@ -21,6 +21,7 @@ pub struct TranslateApp {
     cache: Arc<TranslationCache>,
     translator: Option<Arc<Translator>>,
     is_translating: bool,
+    cancel_requested: Arc<Mutex<bool>>,
     ui_tx: UnboundedSender<UiMessage>,
     ui_rx: Arc<Mutex<Option<UnboundedReceiver<UiMessage>>>>,
     runtime_handle: tokio::runtime::Handle,
@@ -67,6 +68,7 @@ impl TranslateApp {
             cache,
             translator: None,
             is_translating: false,
+            cancel_requested: Arc::new(Mutex::new(false)),
             ui_tx,
             ui_rx: Arc::new(Mutex::new(Some(ui_rx))),
             runtime_handle,
@@ -80,6 +82,9 @@ impl TranslateApp {
         }
 
         tracing::info!("Starting new translation");
+
+        // Reset cancel flag
+        *self.cancel_requested.lock().unwrap() = false;
 
         let translator = Arc::new(Translator::new(api_key, self.cache.clone()));
         self.translator = Some(translator.clone());
@@ -100,11 +105,19 @@ impl TranslateApp {
 
         let ui_tx = self.ui_tx.clone();
         let handle = self.runtime_handle.clone();
+        let cancel_flag = self.cancel_requested.clone();
 
         handle.spawn(async move {
             let mut stream_rx = translator.translate(source_text, target_language);
 
             while let Some(result) = stream_rx.recv().await {
+                // Check if cancellation was requested
+                if *cancel_flag.lock().unwrap() {
+                    tracing::info!("Translation cancelled by user");
+                    let _ = ui_tx.send(UiMessage::TranslationCancelled);
+                    break;
+                }
+
                 match result {
                     Ok(chunk) => {
                         if chunk.is_empty() {
@@ -121,6 +134,13 @@ impl TranslateApp {
                 }
             }
         });
+    }
+
+    pub fn cancel_translation(&mut self) {
+        if self.is_translating {
+            tracing::info!("Cancelling translation");
+            *self.cancel_requested.lock().unwrap() = true;
+        }
     }
 
     fn process_messages(&mut self, ctx: &egui::Context) {
@@ -153,6 +173,12 @@ impl TranslateApp {
                             );
                         }
                     }
+                    UiMessage::TranslationCancelled => {
+                        tracing::info!("Translation cancelled");
+                        self.is_translating = false;
+                        self.display.set_translating(false);
+                        ctx.request_repaint();
+                    }
                 }
             }
         }
@@ -176,7 +202,7 @@ impl eframe::App for TranslateApp {
                 });
             });
 
-        let (translate_requested, api_key_to_save) = self.sidebar.ui(ctx, self.is_translating);
+        let (translate_requested, cancel_requested, api_key_to_save) = self.sidebar.ui(ctx, self.is_translating);
 
         if let Some(api_key) = api_key_to_save {
             self.config.api_key = api_key.clone();
@@ -188,6 +214,10 @@ impl eframe::App for TranslateApp {
             if !api_key.is_empty() {
                 self.start_translation(api_key);
             }
+        }
+
+        if cancel_requested {
+            self.cancel_translation();
         }
 
         let (_, theme_changes) = self.settings.ui(ctx);

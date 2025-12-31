@@ -12,6 +12,8 @@ pub enum UiMessage {
     Error(String),
     /// Translation has completed successfully
     TranslationComplete,
+    /// Translation was cancelled by the user
+    TranslationCancelled,
 }
 
 #[cfg(test)]
@@ -28,6 +30,9 @@ mod tests {
 
         let msg3 = UiMessage::TranslationComplete;
         assert!(matches!(msg3, UiMessage::TranslationComplete));
+
+        let msg4 = UiMessage::TranslationCancelled;
+        assert!(matches!(msg4, UiMessage::TranslationCancelled));
     }
 
     #[test]
