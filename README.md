@@ -32,9 +32,11 @@ cargo build --release
 
 ## Download Pre-built Binaries
 
-You can download pre-built binaries from the [Releases](https://github.com/AnlangA/ai-T/releases) page.
+### Official Releases
 
-### Linux (x86_64)
+Download stable releases from the [Releases](https://github.com/AnlangA/ai-T/releases) page.
+
+#### Linux (x86_64)
 
 ```bash
 wget https://github.com/AnlangA/ai-T/releases/latest/download/ai-translate-linux-x86_64.tar.gz
@@ -42,9 +44,19 @@ tar xzf ai-translate-linux-x86_64.tar.gz
 ./ai-translate
 ```
 
-### Windows (x86_64)
+#### Windows (x86_64)
 
 Download `ai-translate-windows-x86_64.zip` from the releases page, extract it, and run `ai-translate.exe`.
+
+### Development Builds
+
+Development builds from the latest code are available:
+1. Go to the [Actions](https://github.com/AnlangA/ai-T/actions/workflows/release.yml) page
+2. Click on the most recent successful workflow run
+3. Scroll down to the "Artifacts" section
+4. Download `ai-translate-linux-x86_64.tar.gz` or `ai-translate-windows-x86_64.zip`
+
+Alternatively, manually triggered builds create draft releases that can be found in the [Releases](https://github.com/AnlangA/ai-T/releases) section.
 
 ## Usage
 
