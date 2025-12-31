@@ -86,7 +86,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: dev-${{ github.run_number }}-${{ github.run_id }}
+          tag_name: dev-${{ github.run_number }}
           name: Development Build #${{ github.run_number }}
           draft: true
           prerelease: true

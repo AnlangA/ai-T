@@ -12,8 +12,8 @@ If you recently triggered the release workflow manually and are looking for the 
 2. Click on the most recent "Release" workflow run
 3. Scroll down to the **Artifacts** section at the bottom of the page
 4. Download:
-   - `ai-translate-linux-x86_64.tar.gz` - Linux executable (~24 MB)
-   - `ai-translate-windows-x86_64.zip` - Windows executable (~21 MB)
+   - `ai-translate-linux-x86_64.tar.gz` - Linux executable
+   - `ai-translate-windows-x86_64.zip` - Windows executable
 
 **Note**: These artifacts are available for 90 days from the workflow run date.
 
@@ -60,10 +60,12 @@ This will:
 
 The workflow creates two artifacts:
 
-| Artifact | Platform | Contents | Size |
-|----------|----------|----------|------|
-| `ai-translate-linux-x86_64.tar.gz` | Linux x86_64 | Single binary: `ai-translate` | ~24 MB |
-| `ai-translate-windows-x86_64.zip` | Windows x86_64 | Single binary: `ai-translate.exe` | ~21 MB |
+| Artifact | Platform | Contents |
+|----------|----------|----------|
+| `ai-translate-linux-x86_64.tar.gz` | Linux x86_64 | Single binary: `ai-translate` |
+| `ai-translate-windows-x86_64.zip` | Windows x86_64 | Single binary: `ai-translate.exe` |
+
+*Note: Artifact sizes may vary depending on the build but are typically 20-25 MB.*
 
 ## Downloading and Running
 
