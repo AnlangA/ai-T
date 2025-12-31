@@ -21,8 +21,9 @@ impl Default for Sidebar {
 }
 
 impl Sidebar {
-    pub fn ui(&mut self, ctx: &Context, is_translating: bool) -> (bool, Option<String>) {
+    pub fn ui(&mut self, ctx: &Context, is_translating: bool) -> (bool, bool, Option<String>) {
         let mut translate_requested = false;
+        let mut cancel_requested = false;
         let mut api_key_to_save = None;
 
         SidePanel::right("sidebar")
@@ -78,22 +79,26 @@ impl Sidebar {
                 ui.add_space(15.0);
 
                 ui.vertical_centered(|ui| {
-                    let translate_btn = ui.add_enabled(
-                        !is_translating && !self.source_text.is_empty() && !self.api_key.is_empty(),
-                        Button::new(if is_translating {
-                            "Translating..."
-                        } else {
-                            "Translate"
-                        }),
-                    );
+                    if is_translating {
+                        // Show cancel button during translation
+                        if ui.button("Cancel").clicked() {
+                            cancel_requested = true;
+                        }
+                    } else {
+                        // Show translate button when not translating
+                        let translate_btn = ui.add_enabled(
+                            !self.source_text.is_empty() && !self.api_key.is_empty(),
+                            Button::new("Translate"),
+                        );
 
-                    if translate_btn.clicked() && !is_translating {
-                        translate_requested = true;
+                        if translate_btn.clicked() {
+                            translate_requested = true;
+                        }
                     }
                 });
             });
 
-        (translate_requested, api_key_to_save)
+        (translate_requested, cancel_requested, api_key_to_save)
     }
 
     pub fn get_source_text(&self) -> String {
