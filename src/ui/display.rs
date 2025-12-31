@@ -11,12 +11,14 @@ pub struct DisplayPanel {
     input_text: String,
     pub translation: String,
     is_translating: bool,
+    error_message: Option<String>,
 }
 
 impl DisplayPanel {
     /// Sets the input text to display.
     pub fn set_input(&mut self, text: String) {
         self.input_text = text;
+        self.error_message = None;
     }
 
     /// Appends a chunk of translation text (for streaming).
@@ -27,11 +29,17 @@ impl DisplayPanel {
     /// Clears the translation text.
     pub fn clear_translation(&mut self) {
         self.translation.clear();
+        self.error_message = None;
     }
 
     /// Sets whether a translation is in progress.
     pub fn set_translating(&mut self, translating: bool) {
         self.is_translating = translating;
+    }
+
+    /// Sets an error message to display.
+    pub fn set_error(&mut self, error: String) {
+        self.error_message = Some(error);
     }
 
     /// Creates a styled frame for text display.
@@ -93,20 +101,52 @@ impl DisplayPanel {
                         .auto_shrink([false, false])
                         .stick_to_bottom(true) // Auto-scroll to bottom as new content arrives
                         .show(ui, |ui| {
-                            let mut display_text = self.translation.clone();
-                            if self.is_translating && display_text.is_empty() {
-                                display_text = "Translating...".to_string();
-                            } else if self.translation.is_empty() && !self.is_translating {
+                            let mut display_text = String::new();
+                            
+                            // Show error message if present
+                            if let Some(error) = &self.error_message {
+                                ui.colored_label(
+                                    ui.visuals().error_fg_color,
+                                    RichText::new(format!("❌ Error: {}", error))
+                                        .size(font_size)
+                                );
+                                display_text = error.clone();
+                            } else if self.is_translating {
+                                // Show loading indicator while translating
+                                if self.translation.is_empty() {
+                                    ui.horizontal(|ui| {
+                                        ui.spinner();
+                                        ui.label(
+                                            RichText::new("Translating...")
+                                                .size(font_size)
+                                                .color(ui.visuals().weak_text_color())
+                                        );
+                                    });
+                                    display_text = self.translation.clone();
+                                } else {
+                                    // Show partial translation
+                                    display_text = self.translation.clone();
+                                }
+                            } else if self.translation.is_empty() {
+                                // Show placeholder when empty
                                 display_text = "Translation will appear here...".to_string();
+                                ui.colored_label(
+                                    ui.visuals().weak_text_color(),
+                                    RichText::new(&display_text).size(font_size * 0.9).italics()
+                                );
+                            } else {
+                                display_text = self.translation.clone();
                             }
 
-                            TextEdit::multiline(&mut display_text)
-                                .font(FontId::new(font_size, FontFamily::Proportional))
-                                .desired_width(f32::INFINITY)
-                                .desired_rows(5)
-                                .frame(false)
-                                .lock_focus(true)
-                                .show(ui);
+                            if !display_text.is_empty() && self.error_message.is_none() && (!self.is_translating || !self.translation.is_empty()) {
+                                TextEdit::multiline(&mut display_text)
+                                    .font(FontId::new(font_size, FontFamily::Proportional))
+                                    .desired_width(f32::INFINITY)
+                                    .desired_rows(5)
+                                    .frame(false)
+                                    .lock_focus(true)
+                                    .show(ui);
+                            }
                         });
                 });
             });

@@ -130,8 +130,9 @@ impl TranslateApp {
                     }
                     UiMessage::Error(err) => {
                         tracing::error!("UI received translation error: {}", err);
-                        self.display
-                            .update_translation(format!("\n\nError: {}", err));
+                        self.is_translating = false;
+                        self.display.set_translating(false);
+                        self.display.set_error(err);
                         ctx.request_repaint();
                     }
                     UiMessage::TranslationComplete => {
