@@ -84,7 +84,7 @@ impl TranslateApp {
         tracing::info!("Starting new translation");
 
         // Reset cancel flag
-        *self.cancel_requested.lock().unwrap() = false;
+        *self.cancel_requested.lock().expect("Cancel flag mutex poisoned") = false;
 
         let translator = Arc::new(Translator::new(api_key, self.cache.clone()));
         self.translator = Some(translator.clone());
@@ -112,7 +112,7 @@ impl TranslateApp {
 
             while let Some(result) = stream_rx.recv().await {
                 // Check if cancellation was requested
-                if *cancel_flag.lock().unwrap() {
+                if *cancel_flag.lock().expect("Cancel flag mutex poisoned") {
                     tracing::info!("Translation cancelled by user");
                     let _ = ui_tx.send(UiMessage::TranslationCancelled);
                     break;
@@ -139,7 +139,7 @@ impl TranslateApp {
     pub fn cancel_translation(&mut self) {
         if self.is_translating {
             tracing::info!("Cancelling translation");
-            *self.cancel_requested.lock().unwrap() = true;
+            *self.cancel_requested.lock().expect("Cancel flag mutex poisoned") = true;
         }
     }
 

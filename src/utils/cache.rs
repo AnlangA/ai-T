@@ -60,7 +60,7 @@ impl TranslationCache {
     /// Some(translation) if found in cache, None otherwise
     pub fn get(&self, source_text: &str, target_language: &str) -> Option<String> {
         let key = Self::generate_key(source_text, target_language);
-        let cache = self.cache.lock().unwrap();
+        let cache = self.cache.lock().expect("Cache mutex poisoned");
         
         if let Some(entry) = cache.get(&key) {
             tracing::info!("Cache hit for key: {}", key.chars().take(50).collect::<String>());
@@ -82,11 +82,11 @@ impl TranslationCache {
         let key = Self::generate_key(source_text, target_language);
         let entry = CacheEntry {
             translation,
-            timestamp: chrono::Local::now().timestamp(),
+            timestamp: chrono::Utc::now().timestamp(),
         };
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock().expect("Cache mutex poisoned");
             cache.insert(key.clone(), entry);
             tracing::info!("Cached translation for key: {}", key.chars().take(50).collect::<String>());
         }
@@ -98,7 +98,7 @@ impl TranslationCache {
     }
 
     /// Loads cache from file
-    fn load_from_file(path: &PathBuf) -> Result<HashMap<String, CacheEntry>, Box<dyn std::error::Error>> {
+    fn load_from_file(path: &std::path::Path) -> Result<HashMap<String, CacheEntry>, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
         let cache: HashMap<String, CacheEntry> = serde_json::from_str(&content)?;
         tracing::info!("Loaded {} entries from cache file", cache.len());
@@ -107,7 +107,7 @@ impl TranslationCache {
 
     /// Saves cache to file
     fn save_to_file(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let cache = self.cache.lock().unwrap();
+        let cache = self.cache.lock().expect("Cache mutex poisoned");
         let content = serde_json::to_string(&*cache)?;
         fs::write(&self.cache_file, content)?;
         tracing::debug!("Saved {} entries to cache file", cache.len());
@@ -116,7 +116,7 @@ impl TranslationCache {
 
     /// Clears all entries from the cache
     pub fn clear(&self) {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().expect("Cache mutex poisoned");
         cache.clear();
         tracing::info!("Cache cleared");
         
