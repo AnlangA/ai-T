@@ -79,6 +79,9 @@ impl TranslationCache {
     /// * `target_language` - The target language
     /// * `translation` - The translation result
     pub fn set(&self, source_text: &str, target_language: &str, translation: String) {
+        const MAX_CACHE_SIZE: usize = 1000;
+        const CLEANUP_SIZE: usize = 100;
+
         let key = Self::generate_key(source_text, target_language);
         let entry = CacheEntry {
             translation,
@@ -89,6 +92,27 @@ impl TranslationCache {
             let mut cache = self.cache.lock().expect("Cache mutex poisoned");
             cache.insert(key.clone(), entry);
             tracing::info!("Cached translation for key: {}", key.chars().take(50).collect::<String>());
+
+            // Check if cache size exceeds limit
+            if cache.len() > MAX_CACHE_SIZE {
+                tracing::info!("Cache size {} exceeds limit {}, removing oldest {} entries", cache.len(), MAX_CACHE_SIZE, CLEANUP_SIZE);
+
+                // Collect all entries with their keys and timestamps
+                let mut entries: Vec<(String, i64)> = cache
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.timestamp))
+                    .collect();
+
+                // Sort by timestamp (oldest first)
+                entries.sort_by(|a, b| a.1.cmp(&b.1));
+
+                // Remove oldest CLEANUP_SIZE entries
+                for (key_to_remove, _) in entries.iter().take(CLEANUP_SIZE) {
+                    cache.remove(key_to_remove);
+                }
+
+                tracing::info!("Cache cleanup completed, new size: {}", cache.len());
+            }
         }
 
         // Save to disk asynchronously (best effort)
@@ -115,11 +139,12 @@ impl TranslationCache {
     }
 
     /// Clears all entries from the cache
+    #[allow(dead_code)]
     pub fn clear(&self) {
         let mut cache = self.cache.lock().expect("Cache mutex poisoned");
         cache.clear();
         tracing::info!("Cache cleared");
-        
+
         // Remove cache file
         if self.cache_file.exists() {
             let _ = fs::remove_file(&self.cache_file);
@@ -204,9 +229,35 @@ mod tests {
 
         cache.set("test", "Chinese", "测试".to_string());
         assert!(cache.get("test", "Chinese").is_some());
-        
+
         cache.clear();
         assert!(cache.get("test", "Chinese").is_none());
+
+        // Cleanup
+        let _ = fs::remove_file(cache_file);
+    }
+
+    #[test]
+    fn test_cache_limit() {
+        let temp_dir = env::temp_dir();
+        let cache_file = temp_dir.join("test_cache_limit.json");
+        let cache = TranslationCache::new(cache_file.clone());
+
+        // Add more entries than the limit
+        for i in 0..1500 {
+            cache.set(&format!("test_{}", i), "English", format!("translation_{}", i));
+        }
+
+        // Verify cache size is within limit
+        let cache_size = {
+            let cache_inner = cache.cache.lock().expect("Cache mutex poisoned");
+            cache_inner.len()
+        };
+        assert!(cache_size <= 1000, "Cache size {} should be <= 1000", cache_size);
+
+        // Verify newer entries exist
+        assert!(cache.get("test_1499", "English").is_some());
+        assert!(cache.get("test_1400", "English").is_some());
 
         // Cleanup
         let _ = fs::remove_file(cache_file);

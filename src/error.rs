@@ -26,6 +26,7 @@ pub enum TranslationError {
 
     /// Configuration errors
     #[error("Configuration error: {0}")]
+    #[allow(dead_code)]
     ConfigError(String),
 
     /// IO errors
@@ -34,10 +35,12 @@ pub enum TranslationError {
 
     /// Invalid or missing API key
     #[error("Invalid API key")]
+    #[allow(dead_code)]
     InvalidApiKey,
 
     /// General translation failure
     #[error("Translation failed: {0}")]
+    #[allow(dead_code)]
     TranslationFailed(String),
 }
 

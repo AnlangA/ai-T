@@ -98,6 +98,7 @@ pub struct Delta {
 /// Z.AI API client for streaming chat completions.
 #[derive(Clone)]
 pub struct ApiClient {
+    #[allow(dead_code)]
     client: Client,
     api_key: String,
     base_url: String,
@@ -176,7 +177,6 @@ impl ApiClient {
 
                     let mut stream = response.bytes_stream();
                     let mut buffer = Vec::new();
-                    let mut chunk_count = 0;
 
                     use futures_util::StreamExt;
 
@@ -184,50 +184,61 @@ impl ApiClient {
                         match chunk_result {
                             Ok(chunk) => {
                                 buffer.extend_from_slice(&chunk);
-                                let data = String::from_utf8_lossy(&buffer);
 
+                                // Convert buffer to string and split by lines
+                                let data = String::from_utf8_lossy(&buffer);
                                 let lines: Vec<&str> = data.lines().collect();
 
+                                // Process all lines except the last one (might be incomplete)
                                 for (i, line) in lines.iter().enumerate() {
-                                    if i == lines.len() - 1 && !line.starts_with("data: ") {
+                                    // Skip the last line as it might be incomplete
+                                    if i == lines.len() - 1 {
                                         continue;
                                     }
 
-                                    if let Some(json_str) = line.strip_prefix("data: ") {
-                                        if json_str.trim() == "[DONE]" {
-                                            tracing::debug!(
-                                                "Stream completed with {} chunks",
-                                                chunk_count
-                                            );
-                                            let _ = tx.send(Ok(String::new()));
-                                            return;
-                                        }
+                                    let line = line.trim();
+                                    if line.is_empty() {
+                                        continue;
+                                    }
 
+                                    // Check for stream completion marker
+                                    if line == "data: [DONE]" {
+                                        tracing::debug!("Stream completed");
+                                        let _ = tx.send(Ok(String::new()));
+                                        return;
+                                    }
+
+                                    // Try to extract translation content from JSON
+                                    if let Some(json_str) = line.strip_prefix("data: ") {
                                         match serde_json::from_str::<StreamChunk>(json_str) {
-                                            Ok(chunk) => {
-                                                if let Some(choice) = chunk.choices.first()
+                                            Ok(parsed_chunk) => {
+                                                if let Some(choice) = parsed_chunk.choices.first()
                                                     && let Some(content) = &choice.delta.content
                                                 {
-                                                    chunk_count += 1;
                                                     tracing::trace!(
-                                                        "Received chunk {}: {} bytes",
-                                                        chunk_count,
+                                                        "Sending translation: {} bytes",
                                                         content.len()
                                                     );
                                                     let _ = tx.send(Ok(content.clone()));
                                                 }
                                             }
-                                            Err(e) => {
-                                                tracing::warn!(
-                                                    "Failed to parse stream chunk: {}",
-                                                    e
-                                                );
+                                            Err(_) => {
+                                                // Skip incomplete or invalid JSON
+                                                continue;
                                             }
                                         }
                                     }
                                 }
 
-                                buffer.clear();
+                                // Keep only the last incomplete line in buffer
+                                if let Some(last_line_start) = data.rfind('\n') {
+                                    if last_line_start > 0 && last_line_start < buffer.len() {
+                                        let remaining_len = data[last_line_start + 1..].len();
+                                        buffer = buffer.split_off(buffer.len() - remaining_len);
+                                    } else {
+                                        buffer.clear();
+                                    }
+                                }
                             }
                             Err(e) => {
                                 tracing::error!("Stream error: {}", e);
