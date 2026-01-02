@@ -32,6 +32,11 @@ jobs:
         with:
           components: clippy
 
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
       - name: Cargo check
         run: cargo check
 

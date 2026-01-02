@@ -1,0 +1,27 @@
+# Rustfmt configuration for consistent code formatting
+# See https://rust-lang.github.io/rustfmt/
+# This configuration uses only stable features
+
+# Edition to use
+edition = "2024"
+
+# Maximum line width
+max_width = 100
+
+# Use tab or space
+hard_tabs = false
+tab_spaces = 4
+
+# Formatting options
+newline_style = "Unix"
+remove_nested_parens = true
+reorder_imports = true
+reorder_modules = true
+use_small_heuristics = "Default"
+
+# Function formatting
+fn_params_layout = "Tall"
+
+# Use field init shorthand
+use_field_init_shorthand = true
+

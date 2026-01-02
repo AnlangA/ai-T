@@ -1,0 +1,15 @@
+# Clippy configuration for stricter code quality
+# See https://doc.rust-lang.org/clippy/lint_configuration.html
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Type complexity threshold  
+type-complexity-threshold = 250
+
+# Too many lines threshold
+too-many-lines-threshold = 200
+
+# Enable verbose reporting
+verbose-bit-mask-threshold = 1
+

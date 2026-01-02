@@ -1,5 +1,10 @@
 # AI Translate Tool
 
+[![CI](https://github.com/AnlangA/ai-T/actions/workflows/ci.yml/badge.svg)](https://github.com/AnlangA/ai-T/actions/workflows/ci.yml)
+[![Security Audit](https://github.com/AnlangA/ai-T/actions/workflows/security.yml/badge.svg)](https://github.com/AnlangA/ai-T/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
+
 A cross-platform AI-powered translation tool built with Rust and egui.
 
 ## Features
@@ -144,10 +149,47 @@ cargo test api
 cargo test -- --nocapture --test-threads=1
 ```
 
+## Performance Tips
+
+- **Translation Caching**: Translations are cached locally to avoid redundant API calls
+- **Release Builds**: Use `cargo build --release` for optimized performance
+- **Logging**: Reduce log level in production for better performance (`RUST_LOG=warn`)
+- **Font Loading**: The app loads fonts on startup; this is a one-time cost
+
+## Troubleshooting
+
+### Linux: Window not appearing
+Ensure X11 libraries are installed:
+```bash
+sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+```
+
+### API Connection Issues
+- Verify your API key is correct
+- Check your internet connection
+- Ensure `api.z.ai` is accessible from your network
+
+### High CPU Usage
+- Check log level (use `RUST_LOG=warn` instead of `debug` or `trace`)
+- Close other applications using the GPU
+- Update to the latest release
+
+### Cache Issues
+Delete the cache file:
+```bash
+# Linux/macOS
+rm -rf ~/.config/ai-translate/translation_cache.json
+
+# Windows
+del %APPDATA%\ai-translate\translation_cache.json
+```
+
 ## License
 
 MIT License
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a Pull Request.
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
