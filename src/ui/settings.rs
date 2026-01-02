@@ -90,12 +90,7 @@ impl SettingsPanel {
                             ui.add_space(10.0);
 
                             let dark_btn = egui::Button::new(RichText::new("🌑 Dark").size(13.0))
-                                .corner_radius(6.0)
-                                .fill(if self.dark_theme {
-                                    Color32::from_rgba_premultiplied(76, 175, 80, 200)
-                                } else {
-                                    ui.visuals().panel_fill
-                                });
+                                .corner_radius(6.0);
                             if ui.add(dark_btn).clicked() {
                                 self.dark_theme = true;
                             }
@@ -103,12 +98,7 @@ impl SettingsPanel {
                             ui.add_space(8.0);
 
                             let light_btn = egui::Button::new(RichText::new("☀️ Light").size(13.0))
-                                .corner_radius(6.0)
-                                .fill(if !self.dark_theme {
-                                    Color32::from_rgba_premultiplied(255, 193, 7, 200)
-                                } else {
-                                    ui.visuals().panel_fill
-                                });
+                                .corner_radius(6.0);
                             if ui.add(light_btn).clicked() {
                                 self.dark_theme = false;
                             }
@@ -188,8 +178,7 @@ impl SettingsPanel {
                         ui.add_space(8.0);
 
                         if ui.add(egui::Button::new(RichText::new("🗑️ Clear Translation Cache").size(13.0))
-                            .corner_radius(6.0)
-                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150)))
+                            .corner_radius(6.0))
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearTranslationCache);
@@ -206,8 +195,7 @@ impl SettingsPanel {
                         ui.add_space(8.0);
 
                         if ui.add(egui::Button::new(RichText::new("🗑️ Clear Audio Cache").size(13.0))
-                            .corner_radius(6.0)
-                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150)))
+                            .corner_radius(6.0))
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearAudioCache);
@@ -221,8 +209,7 @@ impl SettingsPanel {
                         ui.vertical_centered(|ui| {
                             ui.horizontal(|ui| {
                                 if ui.add(egui::Button::new(RichText::new("✓ Apply Settings").size(14.0))
-                                    .corner_radius(8.0)
-                                    .fill(Color32::from_rgba_premultiplied(76, 175, 80, 230)))
+                                    .corner_radius(8.0))
                                     .clicked()
                                 {
                                     settings_changed = Some(SettingsChange::All(
@@ -237,8 +224,7 @@ impl SettingsPanel {
                                 ui.add_space(15.0);
 
                                 if ui.add(egui::Button::new(RichText::new("✕ Close").size(14.0))
-                                    .corner_radius(8.0)
-                                    .fill(Color32::from_rgba_premultiplied(108, 117, 125, 200)))
+                                    .corner_radius(8.0))
                                     .clicked()
                                 {
                                     close_requested = true;

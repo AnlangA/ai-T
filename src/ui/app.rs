@@ -339,6 +339,16 @@ impl TranslateApp {
     pub fn play_audio(&mut self, audio_path: String) {
         tracing::info!("Playing audio: {}", audio_path);
 
+        // Check if this audio is currently playing (Stop button clicked)
+        if matches!(self.audio_player.get_state(), crate::services::audio::PlaybackState::Playing(ref p) if p == &audio_path) {
+            tracing::info!("Stopping audio playback: {}", audio_path);
+            if let Err(e) = self.audio_player.stop() {
+                tracing::warn!("Failed to stop playback: {}", e);
+            }
+            self.display.set_playback_state(crate::services::audio::PlaybackState::Idle);
+            return;
+        }
+
         // Stop any currently playing audio
         if self.audio_player.is_playing() {
             if let Err(e) = self.audio_player.stop() {

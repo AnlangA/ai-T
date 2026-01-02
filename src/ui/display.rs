@@ -115,11 +115,17 @@ impl DisplayPanel {
     }
 
     /// Creates a styled button for audio playback
-    fn create_audio_button(&self, ui: &mut egui::Ui, converting: bool, audio_path: Option<&str>, _is_source: bool, enabled: bool) -> egui::Response {
+    fn create_audio_button(
+        &self,
+        ui: &mut egui::Ui,
+        converting: bool,
+        audio_path: Option<&str>,
+        _is_source: bool,
+        enabled: bool,
+    ) -> egui::Response {
         let button_text = if converting {
             format!("⏳ Converting")
         } else if let Some(path) = audio_path {
-            // Check if this audio is currently playing
             if matches!(self.playback_state, PlaybackState::Playing(ref p) if p == path) {
                 "⏸ Stop".to_string()
             } else {
@@ -129,36 +135,9 @@ impl DisplayPanel {
             "🔇 No Audio".to_string()
         };
 
-        let button_color = if converting {
-            ui.visuals().warn_fg_color
-        } else if let Some(path) = audio_path {
-            if matches!(self.playback_state, PlaybackState::Playing(ref p) if p == path) {
-                Color32::from_rgb(220, 53, 69) // Red for stop
-            } else {
-                ui.visuals().hyperlink_color // Green for play
-            }
-        } else {
-            ui.visuals().weak_text_color.unwrap()
-        };
+        let button = egui::Button::new(RichText::new(button_text).size(12.0)).corner_radius(8.0);
 
-        let button = egui::Button::new(RichText::new(button_text).size(12.0).color(button_color))
-            .corner_radius(8.0)
-            .fill(if converting {
-                ui.visuals().code_bg_color
-            } else if let Some(path) = audio_path {
-                if matches!(self.playback_state, PlaybackState::Playing(ref p) if p == path) {
-                    Color32::from_rgba_premultiplied(220, 53, 69, 40)
-                } else {
-                    Color32::from_rgba_premultiplied(76, 175, 80, 40)
-                }
-            } else {
-                ui.visuals().panel_fill
-            });
-
-        ui.add_enabled(
-            enabled && !converting && audio_path.is_some(),
-            button
-        )
+        ui.add_enabled(enabled && !converting && audio_path.is_some(), button)
     }
 
     /// Creates a styled frame for text display.
@@ -166,7 +145,12 @@ impl DisplayPanel {
         Frame::NONE
             .stroke(Stroke::new(
                 1.5,
-                ui.visuals().widgets.noninteractive.bg_stroke.color.gamma_multiply(0.8),
+                ui.visuals()
+                    .widgets
+                    .noninteractive
+                    .bg_stroke
+                    .color
+                    .gamma_multiply(0.8),
             ))
             .fill(ui.visuals().extreme_bg_color)
             .inner_margin(Margin::symmetric(16, 12))
@@ -184,7 +168,20 @@ impl DisplayPanel {
     ///
     /// (play_source_clicked, source_audio_to_play, play_translation_clicked, translation_audio_to_play,
     ///  start_source_tts, start_translation_tts, cancel_source_tts, cancel_translation_tts)
-    pub fn ui(&mut self, ctx: &Context, font_size: f32) -> (bool, Option<String>, bool, Option<String>, bool, bool, bool, bool) {
+    pub fn ui(
+        &mut self,
+        ctx: &Context,
+        font_size: f32,
+    ) -> (
+        bool,
+        Option<String>,
+        bool,
+        Option<String>,
+        bool,
+        bool,
+        bool,
+        bool,
+    ) {
         let mut play_source_clicked = false;
         let mut source_audio_to_play = None;
         let mut play_translation_clicked = false;
@@ -204,15 +201,18 @@ impl DisplayPanel {
             ui.vertical(|ui| {
                 // Source Text section with audio controls
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("📄 Source Text").strong().size(font_size * 1.1));
+                    ui.label(
+                        RichText::new("📄 Source Text")
+                            .strong()
+                            .size(font_size * 1.1),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(8.0);
 
                         // TTS Convert button (always enabled)
                         if !self.source_tts_converting && !self.input_text.trim().is_empty() {
                             let btn = egui::Button::new(RichText::new("🔊 Convert").size(12.0))
-                                .corner_radius(6.0)
-                                .fill(Color32::from_rgba_premultiplied(76, 175, 80, 200));
+                                .corner_radius(6.0);
                             if ui.add(btn).on_hover_text("Convert text to audio").clicked() {
                                 start_source_tts = true;
                             }
@@ -222,9 +222,8 @@ impl DisplayPanel {
 
                         // Cancel TTS button (only shown during conversion)
                         if self.source_tts_converting {
-                            let btn = egui::Button::new(RichText::new("✕ Cancel").size(12.0).color(Color32::from_rgb(220, 53, 69)))
-                                .corner_radius(6.0)
-                                .fill(Color32::from_rgba_premultiplied(220, 53, 69, 30));
+                            let btn = egui::Button::new(RichText::new("❌ Cancel").size(12.0))
+                                .corner_radius(6.0);
                             if ui.add(btn).on_hover_text("Cancel TTS conversion").clicked() {
                                 cancel_source_tts = true;
                             }
@@ -233,7 +232,16 @@ impl DisplayPanel {
                         ui.add_space(8.0);
 
                         // Play/Stop audio button
-                        if self.create_audio_button(ui, self.source_tts_converting, self.source_audio_path.as_deref(), true, true).clicked() {
+                        if self
+                            .create_audio_button(
+                                ui,
+                                self.source_tts_converting,
+                                self.source_audio_path.as_deref(),
+                                true,
+                                true,
+                            )
+                            .clicked()
+                        {
                             play_source_clicked = true;
                             if let Some(path) = self.source_audio_path.clone() {
                                 source_audio_to_play = Some(path);
@@ -264,17 +272,25 @@ impl DisplayPanel {
 
                 // Translation section with audio controls
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("🌐 Translation").strong().size(font_size * 1.1));
+                    ui.label(
+                        RichText::new("🌐 Translation")
+                            .strong()
+                            .size(font_size * 1.1),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(8.0);
 
                         // TTS Convert button (only enabled after translation completes)
-                        let translation_tts_enabled = !self.is_translating && !self.translation.is_empty();
+                        let translation_tts_enabled =
+                            !self.is_translating && !self.translation.is_empty();
                         if !self.translation_tts_converting && translation_tts_enabled {
                             let btn = egui::Button::new(RichText::new("🔊 Convert").size(12.0))
-                                .corner_radius(6.0)
-                                .fill(Color32::from_rgba_premultiplied(76, 175, 80, 200));
-                            if ui.add(btn).on_hover_text("Convert translation to audio").clicked() {
+                                .corner_radius(6.0);
+                            if ui
+                                .add(btn)
+                                .on_hover_text("Convert translation to audio")
+                                .clicked()
+                            {
                                 start_translation_tts = true;
                             }
                         }
@@ -283,9 +299,8 @@ impl DisplayPanel {
 
                         // Cancel TTS button (only shown during conversion)
                         if self.translation_tts_converting {
-                            let btn = egui::Button::new(RichText::new("✕ Cancel").size(12.0).color(Color32::from_rgb(220, 53, 69)))
-                                .corner_radius(6.0)
-                                .fill(Color32::from_rgba_premultiplied(220, 53, 69, 30));
+                            let btn = egui::Button::new(RichText::new("❌ Cancel").size(12.0))
+                                .corner_radius(6.0);
                             if ui.add(btn).on_hover_text("Cancel TTS conversion").clicked() {
                                 cancel_translation_tts = true;
                             }
@@ -294,7 +309,16 @@ impl DisplayPanel {
                         ui.add_space(8.0);
 
                         // Play/Stop audio button
-                        if self.create_audio_button(ui, self.translation_tts_converting, self.translation_audio_path.as_deref(), false, translation_tts_enabled).clicked() {
+                        if self
+                            .create_audio_button(
+                                ui,
+                                self.translation_tts_converting,
+                                self.translation_audio_path.as_deref(),
+                                false,
+                                translation_tts_enabled,
+                            )
+                            .clicked()
+                        {
                             play_translation_clicked = true;
                             if let Some(path) = self.translation_audio_path.clone() {
                                 translation_audio_to_play = Some(path);
@@ -362,7 +386,15 @@ impl DisplayPanel {
             });
         });
 
-        (play_source_clicked, source_audio_to_play, play_translation_clicked, translation_audio_to_play,
-            start_source_tts, start_translation_tts, cancel_source_tts, cancel_translation_tts)
+        (
+            play_source_clicked,
+            source_audio_to_play,
+            play_translation_clicked,
+            translation_audio_to_play,
+            start_source_tts,
+            start_translation_tts,
+            cancel_source_tts,
+            cancel_translation_tts,
+        )
     }
 }
