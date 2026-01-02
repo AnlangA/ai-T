@@ -1,5 +1,10 @@
 # AI Translate Tool
 
+[![CI](https://github.com/AnlangA/ai-T/actions/workflows/ci.yml/badge.svg)](https://github.com/AnlangA/ai-T/actions/workflows/ci.yml)
+[![Security Audit](https://github.com/AnlangA/ai-T/actions/workflows/security.yml/badge.svg)](https://github.com/AnlangA/ai-T/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
+
 A cross-platform AI-powered translation tool built with Rust and egui.
 
 ## Features
