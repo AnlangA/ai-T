@@ -10,7 +10,9 @@ pub struct SettingsPanel {
     pub tts_speed: f32,
     pub tts_volume: f32,
     show_panel: bool,
+    #[allow(dead_code)]
     clear_translation_cache: bool,
+    #[allow(dead_code)]
     clear_audio_cache: bool,
 }
 

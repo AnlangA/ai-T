@@ -99,21 +99,6 @@ impl DisplayPanel {
         self.translation_tts_converting
     }
 
-    /// Gets the source audio path
-    pub fn get_source_audio_path(&self) -> Option<&str> {
-        self.source_audio_path.as_deref()
-    }
-
-    /// Gets the translation audio path
-    pub fn get_translation_audio_path(&self) -> Option<&str> {
-        self.translation_audio_path.as_deref()
-    }
-
-    /// Gets the playback state
-    pub fn get_playback_state(&self) -> &PlaybackState {
-        &self.playback_state
-    }
-
     /// Creates a styled button for audio playback
     fn create_audio_button(
         &self,

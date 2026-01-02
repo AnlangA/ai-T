@@ -12,6 +12,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+
+/// Cache index entry for persistence
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CacheIndexEntry {
+    /// Path to audio file
+    audio_path: PathBuf,
+    /// Timestamp when audio was generated
+    timestamp: i64,
+    /// Hash of the text that was converted to audio
+    text_hash: String,
+}
 
 /// Cache entry for audio files
 #[derive(Debug, Clone)]
@@ -20,14 +32,13 @@ struct AudioCacheEntry {
     audio_path: PathBuf,
     /// Timestamp when the audio was generated
     timestamp: i64,
-    /// Text that was converted to audio
-    text: String,
 }
 
 /// Audio cache manager with 100-entry limit
 pub struct AudioCache {
     cache: Arc<Mutex<HashMap<String, AudioCacheEntry>>>,
     cache_dir: PathBuf,
+    index_file: PathBuf,
     max_entries: usize,
 }
 
@@ -40,17 +51,18 @@ impl AudioCache {
     pub fn new(cache_dir: PathBuf) -> Self {
         tracing::info!("Initializing audio cache at: {:?}", cache_dir);
 
-        // Create cache directory if it doesn't exist
-        if let Some(parent) = cache_dir.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
+        let index_file = cache_dir.join("cache_index.json");
 
-        // Load existing cache entries
-        let cache = Self::load_cache_files(&cache_dir);
+        // Create cache directory if it doesn't exist
+        let _ = fs::create_dir_all(&cache_dir);
+
+        // Load cache from index file
+        let cache = Self::load_cache_from_index(&index_file, &cache_dir);
 
         AudioCache {
             cache: Arc::new(Mutex::new(cache)),
             cache_dir,
+            index_file,
             max_entries: 100,
         }
     }
@@ -107,7 +119,6 @@ impl AudioCache {
         let entry = AudioCacheEntry {
             audio_path: audio_path.clone(),
             timestamp: Utc::now().timestamp(),
-            text: text.to_string(),
         };
 
         {
@@ -130,6 +141,9 @@ impl AudioCache {
 
             tracing::info!("Cached audio for text hash: {}", key);
         }
+
+        // Save index to file
+        self.save_cache_index();
     }
 
     /// Clears all entries from the cache
@@ -148,6 +162,11 @@ impl AudioCache {
 
         drop(cache);
         self.cache.lock().expect("Cache mutex poisoned").clear();
+
+        // Delete index file
+        if let Err(e) = fs::remove_file(&self.index_file) {
+            tracing::warn!("Failed to remove cache index file: {}", e);
+        }
     }
 
     /// Gets the number of entries in the cache
@@ -155,61 +174,83 @@ impl AudioCache {
         self.cache.lock().expect("Cache mutex poisoned").len()
     }
 
-    /// Checks if the cache is empty
-    pub fn is_empty(&self) -> bool {
-        self.cache.lock().expect("Cache mutex poisoned").is_empty()
-    }
-
-    /// Loads existing cache files from the cache directory
-    fn load_cache_files(cache_dir: &Path) -> HashMap<String, AudioCacheEntry> {
+    /// Loads cache from index file
+    fn load_cache_from_index(index_file: &Path, _cache_dir: &Path) -> HashMap<String, AudioCacheEntry> {
         let mut cache = HashMap::new();
 
-        if !cache_dir.exists() {
+        if !index_file.exists() {
+            tracing::info!("Cache index file not found, starting with empty cache");
             return cache;
         }
 
-        let entries = match fs::read_dir(cache_dir) {
-            Ok(entries) => entries,
-            Err(e) => {
-                tracing::warn!("Failed to read cache directory: {}", e);
-                return cache;
-            }
-        };
+        match fs::read_to_string(index_file) {
+            Ok(index_json) => {
+                match serde_json::from_str::<Vec<CacheIndexEntry>>(&index_json) {
+                    Ok(entries) => {
+                        tracing::info!("Loading {} entries from cache index", entries.len());
 
-        for entry in entries.flatten() {
-            let path = entry.path();
+                        for entry in entries {
+                            // Check if audio file exists
+                            if entry.audio_path.exists() {
+                                cache.insert(
+                                    entry.text_hash.clone(),
+                                    AudioCacheEntry {
+                                        audio_path: entry.audio_path.clone(),
+                                        timestamp: entry.timestamp,
+                                    },
+                                );
+                            } else {
+                                tracing::warn!(
+                                    "Audio file not found for cache entry, skipping: {:?}",
+                                    entry.audio_path
+                                );
+                            }
+                        }
 
-            if path.is_file() && path.extension().map_or(false, |ext| ext == "wav") {
-                let metadata = match fs::metadata(&path) {
-                    Ok(meta) => meta,
-                    Err(e) => {
-                        tracing::warn!("Failed to get metadata for {:?}: {}", path, e);
-                        continue;
+                        tracing::info!("Successfully loaded {} valid cache entries", cache.len());
                     }
-                };
-
-                let timestamp = metadata
-                    .modified()
-                    .ok()
-                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_secs() as i64)
-                    .unwrap_or(0);
-
-                let key = Self::generate_key(&path.file_name().unwrap_or_default().to_string_lossy());
-
-                cache.insert(
-                    key,
-                    AudioCacheEntry {
-                        audio_path: path.clone(),
-                        timestamp,
-                        text: String::new(),
-                    },
-                );
+                    Err(e) => {
+                        tracing::error!("Failed to parse cache index file: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to read cache index file: {}", e);
             }
         }
 
-        tracing::info!("Loaded {} audio cache entries from disk", cache.len());
         cache
+    }
+
+    /// Saves cache index to file
+    fn save_cache_index(&self) {
+        let cache = self.cache.lock().expect("Cache mutex poisoned");
+
+        // Convert cache entries to index entries
+        let index_entries: Vec<CacheIndexEntry> = cache
+            .iter()
+            .map(|(text_hash, entry)| CacheIndexEntry {
+                audio_path: entry.audio_path.clone(),
+                timestamp: entry.timestamp,
+                text_hash: text_hash.clone(),
+            })
+            .collect();
+
+        drop(cache);
+
+        // Serialize and write to file
+        match serde_json::to_string_pretty(&index_entries) {
+            Ok(json) => {
+                if let Err(e) = fs::write(&self.index_file, json) {
+                    tracing::error!("Failed to write cache index file: {}", e);
+                } else {
+                    tracing::debug!("Saved cache index with {} entries", index_entries.len());
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to serialize cache index: {}", e);
+            }
+        }
     }
 
     /// Cleans up oldest entries when cache size exceeds limit
@@ -242,6 +283,9 @@ impl AudioCache {
         }
 
         tracing::info!("Audio cache cleanup completed, new size: {}", cache.len());
+
+        // Save updated index
+        self.save_cache_index();
     }
 
     /// Gets a path for a new cached audio file

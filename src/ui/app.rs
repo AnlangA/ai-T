@@ -524,6 +524,12 @@ impl eframe::App for TranslateApp {
         self.process_messages(ctx);
         self.theme.set_visuals(ctx);
 
+        // Check if audio playback has finished
+        self.audio_player.update_state_if_finished();
+        if self.audio_player.get_state() == crate::services::audio::PlaybackState::Idle {
+            self.display.set_playback_state(crate::services::audio::PlaybackState::Idle);
+        }
+
         egui::TopBottomPanel::top("top_bar")
             .exact_height(40.0)
             .show(ctx, |ui| {
