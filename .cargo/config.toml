@@ -1,0 +1,13 @@
+# Cargo configuration for optimized builds
+
+[profile.dev]
+# Faster compilation in development
+incremental = true
+
+[target.x86_64-unknown-linux-gnu]
+# Use lld linker if available for faster linking on Linux
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-msvc]
+# Optimize for Windows builds
+rustflags = ["-C", "target-feature=+crt-static"]
