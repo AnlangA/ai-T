@@ -150,6 +150,11 @@ impl TranslationCache {
             let _ = fs::remove_file(&self.cache_file);
         }
     }
+
+    /// Returns the number of entries in the cache
+    pub fn len(&self) -> usize {
+        self.cache.lock().expect("Cache mutex poisoned").len()
+    }
 }
 
 impl Default for TranslationCache {

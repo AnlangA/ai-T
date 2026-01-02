@@ -25,6 +25,7 @@
 mod api;
 mod channel;
 mod error;
+mod services;
 mod ui;
 mod utils;
 

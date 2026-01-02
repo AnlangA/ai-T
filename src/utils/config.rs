@@ -7,6 +7,7 @@ use egui::Id;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use text2audio::Voice;
 
 /// Application configuration structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +20,30 @@ pub struct AppConfig {
     pub font_size: f32,
     /// Whether to use dark theme
     pub dark_theme: bool,
+    /// TTS voice selection
+    #[serde(default = "default_voice")]
+    pub tts_voice: String,
+    /// TTS speed multiplier
+    #[serde(default = "default_speed")]
+    pub tts_speed: f32,
+    /// TTS volume level
+    #[serde(default = "default_volume")]
+    pub tts_volume: f32,
+}
+
+/// Default voice name for TTS
+fn default_voice() -> String {
+    "Tongtong".to_string()
+}
+
+/// Default TTS speed
+fn default_speed() -> f32 {
+    1.0
+}
+
+/// Default TTS volume
+fn default_volume() -> f32 {
+    1.0
 }
 
 impl Default for AppConfig {
@@ -28,6 +53,9 @@ impl Default for AppConfig {
             target_language: "English".to_string(),
             font_size: 16.0,
             dark_theme: true,
+            tts_voice: default_voice(),
+            tts_speed: default_speed(),
+            tts_volume: default_volume(),
         }
     }
 }
@@ -64,6 +92,33 @@ impl AppConfig {
             "Русский",
             "Italiano",
         ]
+    }
+
+    /// Returns a list of supported TTS voices.
+    pub fn get_supported_voices() -> Vec<&'static str> {
+        vec![
+            "Tongtong",
+            "Chuichui",
+            "Xiaochen",
+            "Jam",
+            "Kazi",
+            "Douji",
+            "Luodo",
+        ]
+    }
+
+    /// Converts a voice name string to Voice enum.
+    pub fn parse_voice(voice_name: &str) -> Voice {
+        match voice_name {
+            "Tongtong" => Voice::Tongtong,
+            "Chuichui" => Voice::Chuichui,
+            "Xiaochen" => Voice::Xiaochen,
+            "Jam" => Voice::Jam,
+            "Kazi" => Voice::Kazi,
+            "Douji" => Voice::Douji,
+            "Luodo" => Voice::Luodo,
+            _ => Voice::Tongtong,
+        }
     }
 
     /// Returns the egui memory ID for this configuration.
@@ -138,6 +193,9 @@ mod tests {
             target_language: "中文".to_string(),
             font_size: 18.0,
             dark_theme: false,
+            tts_voice: "Tongtong".to_string(),
+            tts_speed: 1.0,
+            tts_volume: 1.0,
         };
 
         let json = serde_json::to_string(&config).unwrap();
@@ -147,5 +205,8 @@ mod tests {
         assert_eq!(config.target_language, deserialized.target_language);
         assert_eq!(config.font_size, deserialized.font_size);
         assert_eq!(config.dark_theme, deserialized.dark_theme);
+        assert_eq!(config.tts_voice, deserialized.tts_voice);
+        assert_eq!(config.tts_speed, deserialized.tts_speed);
+        assert_eq!(config.tts_volume, deserialized.tts_volume);
     }
 }

@@ -3,6 +3,7 @@
 //! This module provides the central UI component that displays
 //! the input text and streaming translation results.
 
+use crate::services::audio::PlaybackState;
 use egui::*;
 
 /// Display panel showing source text and translation results.
@@ -12,6 +13,13 @@ pub struct DisplayPanel {
     pub translation: String,
     is_translating: bool,
     error_message: Option<String>,
+
+    // TTS and playback state
+    source_tts_converting: bool,
+    source_audio_path: Option<String>,
+    translation_tts_converting: bool,
+    translation_audio_path: Option<String>,
+    playback_state: PlaybackState,
 }
 
 impl DisplayPanel {
@@ -42,6 +50,87 @@ impl DisplayPanel {
         self.error_message = Some(error);
     }
 
+    /// Sets the source TTS conversion state
+    pub fn set_source_tts_converting(&mut self, converting: bool) {
+        self.source_tts_converting = converting;
+        if converting {
+            self.source_audio_path = None;
+        }
+    }
+
+    /// Sets the translation TTS conversion state
+    pub fn set_translation_tts_converting(&mut self, converting: bool) {
+        self.translation_tts_converting = converting;
+        if converting {
+            self.translation_audio_path = None;
+        }
+    }
+
+    /// Sets the source audio path
+    pub fn set_source_audio_path(&mut self, path: Option<String>) {
+        self.source_audio_path = path;
+    }
+
+    /// Sets the translation audio path
+    pub fn set_translation_audio_path(&mut self, path: Option<String>) {
+        self.translation_audio_path = path;
+    }
+
+    /// Updates the playback state
+    pub fn set_playback_state(&mut self, state: PlaybackState) {
+        self.playback_state = state;
+    }
+
+    /// Gets whether source audio is converting
+    pub fn is_source_converting(&self) -> bool {
+        self.source_tts_converting
+    }
+
+    /// Gets whether translation audio is converting
+    pub fn is_translation_converting(&self) -> bool {
+        self.translation_tts_converting
+    }
+
+    /// Gets the source audio path
+    pub fn get_source_audio_path(&self) -> Option<&str> {
+        self.source_audio_path.as_deref()
+    }
+
+    /// Gets the translation audio path
+    pub fn get_translation_audio_path(&self) -> Option<&str> {
+        self.translation_audio_path.as_deref()
+    }
+
+    /// Gets the playback state
+    pub fn get_playback_state(&self) -> &PlaybackState {
+        &self.playback_state
+    }
+
+    /// Creates a styled button for audio playback
+    fn create_audio_button(&self, ui: &mut egui::Ui, converting: bool, audio_path: Option<&str>, is_source: bool) -> egui::Response {
+        let button_text = if converting {
+            format!("⏳ {}", if is_source { "Source" } else { "Trans" })
+        } else if let Some(path) = audio_path {
+            // Check if this audio is currently playing
+            if matches!(self.playback_state, PlaybackState::Playing(ref p) if p == path) {
+                format!("⏹ {}", if is_source { "Source" } else { "Trans" })
+            } else {
+                format!("▶ {}", if is_source { "Source" } else { "Trans" })
+            }
+        } else {
+            format!("🔇 {}", if is_source { "Source" } else { "Trans" })
+        };
+
+        let button = egui::Button::new(button_text)
+            .small()
+            .corner_radius(4.0);
+
+        ui.add_enabled(
+            !converting && audio_path.is_some(),
+            button
+        )
+    }
+
     /// Creates a styled frame for text display.
     fn create_text_frame(&self, ui: &Ui) -> Frame {
         Frame::NONE
@@ -60,7 +149,12 @@ impl DisplayPanel {
     ///
     /// * `ctx` - The egui context
     /// * `font_size` - Font size for text display
-    pub fn ui(&mut self, ctx: &Context, font_size: f32) {
+    pub fn ui(&mut self, ctx: &Context, font_size: f32) -> (bool, Option<String>, bool, Option<String>) {
+        let mut play_source_clicked = false;
+        let mut source_audio_to_play = None;
+        let mut play_translation_clicked = false;
+        let mut translation_audio_to_play = None;
+
         CentralPanel::default().show(ctx, |ui| {
             ui.add_space(16.0);
 
@@ -69,7 +163,18 @@ impl DisplayPanel {
             let panel_height = (available_height / 2.0).max(150.0) - 16.0; // Ensure minimum height
 
             ui.vertical(|ui| {
-                ui.label(RichText::new("Source Text").strong().size(font_size * 1.1));
+                // Source Text section with audio button
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Source Text").strong().size(font_size * 1.1));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if self.create_audio_button(ui, self.source_tts_converting, self.source_audio_path.as_deref(), true).clicked() {
+                            play_source_clicked = true;
+                            if let Some(path) = self.source_audio_path.clone() {
+                                source_audio_to_play = Some(path);
+                            }
+                        }
+                    });
+                });
                 ui.add_space(8.0);
 
                 self.create_text_frame(ui).show(ui, |ui| {
@@ -91,7 +196,18 @@ impl DisplayPanel {
 
                 ui.add_space(16.0);
 
-                ui.label(RichText::new("Translation").strong().size(font_size * 1.1));
+                // Translation section with audio button
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Translation").strong().size(font_size * 1.1));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if self.create_audio_button(ui, self.translation_tts_converting, self.translation_audio_path.as_deref(), false).clicked() {
+                            play_translation_clicked = true;
+                            if let Some(path) = self.translation_audio_path.clone() {
+                                translation_audio_to_play = Some(path);
+                            }
+                        }
+                    });
+                });
                 ui.add_space(8.0);
 
                 self.create_text_frame(ui).show(ui, |ui| {
@@ -151,5 +267,7 @@ impl DisplayPanel {
                 });
             });
         });
+
+        (play_source_clicked, source_audio_to_play, play_translation_clicked, translation_audio_to_play)
     }
 }

@@ -1,7 +1,9 @@
 //! UI message channel for communicating between async tasks and the UI.
 //!
 //! This module defines message types used to communicate translation
-//! progress and results from background tasks to the UI thread.
+//! and TTS progress and results from background tasks to the UI thread.
+
+use crate::services::audio::PlaybackState;
 
 /// Messages sent from background tasks to the UI.
 #[derive(Debug, Clone)]
@@ -14,6 +16,18 @@ pub enum UiMessage {
     TranslationComplete,
     /// Translation was cancelled by the user
     TranslationCancelled,
+    /// TTS conversion started for source text
+    SourceTtsStarted,
+    /// TTS conversion started for translation text
+    TranslationTtsStarted,
+    /// TTS conversion completed for source text
+    SourceTtsCompleted(String),
+    /// TTS conversion completed for translation text
+    TranslationTtsCompleted(String),
+    /// TTS conversion failed
+    TtsFailed(String),
+    /// Audio playback state changed
+    PlaybackStateChanged(PlaybackState),
 }
 
 #[cfg(test)]
