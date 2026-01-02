@@ -153,11 +153,10 @@ impl AudioCache {
         tracing::info!("Clearing audio cache ({} entries)", cache.len());
 
         for entry in cache.values() {
-            if entry.audio_path.exists() {
-                if let Err(e) = fs::remove_file(&entry.audio_path) {
+            if entry.audio_path.exists()
+                && let Err(e) = fs::remove_file(&entry.audio_path) {
                     tracing::warn!("Failed to remove audio file {:?}: {}", entry.audio_path, e);
                 }
-            }
         }
 
         drop(cache);

@@ -109,12 +109,12 @@ impl DisplayPanel {
         enabled: bool,
     ) -> egui::Response {
         let button_text = if converting {
-            format!("⏳ Converting")
+            "⏳ Converting".to_string()
         } else if let Some(path) = audio_path {
             if matches!(self.playback_state, PlaybackState::Playing(ref p) if p == path) {
                 "⏸ Stop".to_string()
             } else {
-                format!("▶ Play")
+                "▶ Play".to_string()
             }
         } else {
             "🔇 No Audio".to_string()

@@ -378,11 +378,10 @@ impl TranslateApp {
         }
 
         // Stop any currently playing audio
-        if self.audio_player.is_playing() {
-            if let Err(e) = self.audio_player.stop() {
+        if self.audio_player.is_playing()
+            && let Err(e) = self.audio_player.stop() {
                 tracing::warn!("Failed to stop current playback: {}", e);
             }
-        }
 
         // Start new playback
         match self.audio_player.play(&audio_path) {
@@ -665,18 +664,16 @@ impl eframe::App for TranslateApp {
         }
 
         // Handle source audio button click
-        if play_source_clicked {
-            if let Some(audio_path) = source_audio_to_play {
+        if play_source_clicked
+            && let Some(audio_path) = source_audio_to_play {
                 self.play_audio(audio_path);
             }
-        }
 
         // Handle translation audio button click
-        if play_translation_clicked {
-            if let Some(audio_path) = translation_audio_to_play {
+        if play_translation_clicked
+            && let Some(audio_path) = translation_audio_to_play {
                 self.play_audio(audio_path);
             }
-        }
 
         // Handle source TTS cancel
         if cancel_source_tts {
