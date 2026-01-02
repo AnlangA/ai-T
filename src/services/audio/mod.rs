@@ -7,12 +7,12 @@ mod player;
 
 pub use player::{AudioPlayer, PlaybackState};
 
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use chrono::Utc;
-use serde::{Deserialize, Serialize};
 
 /// Cache index entry for persistence
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,7 +175,10 @@ impl AudioCache {
     }
 
     /// Loads cache from index file
-    fn load_cache_from_index(index_file: &Path, _cache_dir: &Path) -> HashMap<String, AudioCacheEntry> {
+    fn load_cache_from_index(
+        index_file: &Path,
+        _cache_dir: &Path,
+    ) -> HashMap<String, AudioCacheEntry> {
         let mut cache = HashMap::new();
 
         if !index_file.exists() {

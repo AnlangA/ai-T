@@ -119,8 +119,8 @@ impl TtsService {
         // Spawn in a new thread to avoid blocking the current runtime
         std::thread::spawn(move || {
             // Create a new runtime for this thread
-            let rt = tokio::runtime::Runtime::new()
-                .expect("Failed to create Tokio runtime in thread");
+            let rt =
+                tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime in thread");
 
             let status = match rt.block_on(converter.convert(&text_owned, &output_path_owned)) {
                 Ok(()) => TtsStatus::Completed(output_path_owned),
@@ -163,4 +163,3 @@ mod tests {
         assert!(matches!(status_failed, TtsStatus::Failed(_)));
     }
 }
-

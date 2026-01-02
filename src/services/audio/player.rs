@@ -45,10 +45,7 @@ impl AudioPlayer {
 
     /// Checks if audio is currently playing
     pub fn is_playing(&self) -> bool {
-        matches!(
-            self.get_state(),
-            PlaybackState::Playing(_)
-        )
+        matches!(self.get_state(), PlaybackState::Playing(_))
     }
 
     /// Updates playback state if playback has finished
@@ -76,7 +73,7 @@ impl AudioPlayer {
             if let Some(mut child) = process.take() {
                 #[cfg(unix)]
                 {
-                    use nix::sys::signal::{kill, Signal};
+                    use nix::sys::signal::{Signal, kill};
                     use nix::unistd::Pid;
 
                     // Try graceful shutdown first
@@ -128,7 +125,8 @@ impl AudioPlayer {
             *process = Some(child);
         }
 
-        *self.state.lock().expect("State mutex poisoned") = PlaybackState::Playing(file_path.to_string());
+        *self.state.lock().expect("State mutex poisoned") =
+            PlaybackState::Playing(file_path.to_string());
 
         Ok(())
     }
@@ -136,7 +134,11 @@ impl AudioPlayer {
     /// Waits for the current playback to complete
     #[allow(dead_code)]
     pub fn wait_for_completion(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let process_opt = self.current_process.lock().expect("Process mutex poisoned").take();
+        let process_opt = self
+            .current_process
+            .lock()
+            .expect("Process mutex poisoned")
+            .take();
 
         if let Some(mut child) = process_opt {
             let status = child.wait()?;
@@ -152,7 +154,10 @@ impl AudioPlayer {
     }
 
     /// Plays audio using platform-specific audio player
-    fn play_audio(&self, file_path: &str) -> Result<std::process::Child, Box<dyn std::error::Error>> {
+    fn play_audio(
+        &self,
+        file_path: &str,
+    ) -> Result<std::process::Child, Box<dyn std::error::Error>> {
         #[cfg(windows)]
         {
             self.play_windows(file_path)
@@ -170,7 +175,10 @@ impl AudioPlayer {
     }
 
     #[cfg(windows)]
-    fn play_windows(&self, file_path: &str) -> Result<std::process::Child, Box<dyn std::error::Error>> {
+    fn play_windows(
+        &self,
+        file_path: &str,
+    ) -> Result<std::process::Child, Box<dyn std::error::Error>> {
         tracing::info!("Playing audio using Windows Media Player");
 
         // Convert path to Windows format if needed
@@ -194,7 +202,10 @@ impl AudioPlayer {
     }
 
     #[cfg(target_os = "macos")]
-    fn play_macos(&self, file_path: &str) -> Result<std::process::Child, Box<dyn std::error::Error>> {
+    fn play_macos(
+        &self,
+        file_path: &str,
+    ) -> Result<std::process::Child, Box<dyn std::error::Error>> {
         let players = vec![
             ("afplay", vec![file_path]),
             ("ffplay", vec!["-nodisp", "-autoexit", file_path]),
@@ -204,7 +215,10 @@ impl AudioPlayer {
     }
 
     #[cfg(not(any(windows, target_os = "macos")))]
-    fn play_linux(&self, file_path: &str) -> Result<std::process::Child, Box<dyn std::error::Error>> {
+    fn play_linux(
+        &self,
+        file_path: &str,
+    ) -> Result<std::process::Child, Box<dyn std::error::Error>> {
         let players = vec![
             ("aplay", vec!["-q", file_path]),
             ("paplay", vec![file_path]),

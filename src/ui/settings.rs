@@ -32,7 +32,13 @@ impl Default for SettingsPanel {
 }
 
 impl SettingsPanel {
-    pub fn new(font_size: f32, dark_theme: bool, tts_voice: String, tts_speed: f32, tts_volume: f32) -> Self {
+    pub fn new(
+        font_size: f32,
+        dark_theme: bool,
+        tts_voice: String,
+        tts_speed: f32,
+        tts_volume: f32,
+    ) -> Self {
         SettingsPanel {
             font_size,
             dark_theme,
@@ -65,9 +71,7 @@ impl SettingsPanel {
                     ui.vertical(|ui| {
                         // Appearance Section
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🎨 Appearance Settings")
-                                .strong()
-                                .size(18.0));
+                            ui.label(RichText::new("🎨 Appearance Settings").strong().size(18.0));
                         });
                         ui.add_space(12.0);
                         ui.separator();
@@ -112,9 +116,7 @@ impl SettingsPanel {
 
                         // TTS Section
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🔊 TTS Settings")
-                                .strong()
-                                .size(18.0));
+                            ui.label(RichText::new("🔊 TTS Settings").strong().size(18.0));
                         });
                         ui.add_space(12.0);
 
@@ -129,7 +131,11 @@ impl SettingsPanel {
                                 .width(150.0)
                                 .show_ui(ui, |ui| {
                                     for voice in voices {
-                                        ui.selectable_value(&mut self.tts_voice, voice.to_string(), voice);
+                                        ui.selectable_value(
+                                            &mut self.tts_voice,
+                                            voice.to_string(),
+                                            voice,
+                                        );
                                     }
                                 });
                         });
@@ -165,22 +171,29 @@ impl SettingsPanel {
 
                         // Cache Management Section
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("💾 Cache Management")
-                                .strong()
-                                .size(18.0));
+                            ui.label(RichText::new("💾 Cache Management").strong().size(18.0));
                         });
                         ui.add_space(12.0);
 
                         // Translation Cache
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(
-                                format!("Translation cache: {} entries", translation_cache.as_ref().map_or(0, |c| c.len()))
-                            ).size(14.0));
+                            ui.label(
+                                RichText::new(format!(
+                                    "Translation cache: {} entries",
+                                    translation_cache.as_ref().map_or(0, |c| c.len())
+                                ))
+                                .size(14.0),
+                            );
                         });
                         ui.add_space(8.0);
 
-                        if ui.add(egui::Button::new(RichText::new("🗑️ Clear Translation Cache").size(13.0))
-                            .corner_radius(6.0))
+                        if ui
+                            .add(
+                                egui::Button::new(
+                                    RichText::new("🗑️Clear Translation Cache").size(13.0),
+                                )
+                                .corner_radius(6.0),
+                            )
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearTranslationCache);
@@ -190,14 +203,18 @@ impl SettingsPanel {
 
                         // Audio Cache
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(
-                                format!("Audio cache: {} files", audio_cache_len)
-                            ).size(14.0));
+                            ui.label(
+                                RichText::new(format!("Audio cache: {} files", audio_cache_len))
+                                    .size(14.0),
+                            );
                         });
                         ui.add_space(8.0);
 
-                        if ui.add(egui::Button::new(RichText::new("🗑️ Clear Audio Cache").size(13.0))
-                            .corner_radius(6.0))
+                        if ui
+                            .add(
+                                egui::Button::new(RichText::new("🗑️Clear Audio Cache").size(13.0))
+                                    .corner_radius(6.0),
+                            )
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearAudioCache);
@@ -210,8 +227,13 @@ impl SettingsPanel {
                         // Action Buttons
                         ui.vertical_centered(|ui| {
                             ui.horizontal(|ui| {
-                                if ui.add(egui::Button::new(RichText::new("✓ Apply Settings").size(14.0))
-                                    .corner_radius(8.0))
+                                if ui
+                                    .add(
+                                        egui::Button::new(
+                                            RichText::new("✓ Apply Settings").size(14.0),
+                                        )
+                                        .corner_radius(8.0),
+                                    )
                                     .clicked()
                                 {
                                     settings_changed = Some(SettingsChange::All(
@@ -225,8 +247,11 @@ impl SettingsPanel {
 
                                 ui.add_space(15.0);
 
-                                if ui.add(egui::Button::new(RichText::new("✕ Close").size(14.0))
-                                    .corner_radius(8.0))
+                                if ui
+                                    .add(
+                                        egui::Button::new(RichText::new("✕ Close").size(14.0))
+                                            .corner_radius(8.0),
+                                    )
                                     .clicked()
                                 {
                                     close_requested = true;
@@ -255,4 +280,3 @@ pub enum SettingsChange {
     ClearTranslationCache,
     ClearAudioCache,
 }
-

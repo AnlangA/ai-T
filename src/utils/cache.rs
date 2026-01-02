@@ -30,7 +30,7 @@ impl TranslationCache {
     /// * `cache_file` - Path to the cache file for persistence
     pub fn new(cache_file: PathBuf) -> Self {
         tracing::info!("Initializing translation cache at: {:?}", cache_file);
-        
+
         let cache = if cache_file.exists() {
             Self::load_from_file(&cache_file).unwrap_or_default()
         } else {
@@ -61,12 +61,18 @@ impl TranslationCache {
     pub fn get(&self, source_text: &str, target_language: &str) -> Option<String> {
         let key = Self::generate_key(source_text, target_language);
         let cache = self.cache.lock().expect("Cache mutex poisoned");
-        
+
         if let Some(entry) = cache.get(&key) {
-            tracing::info!("Cache hit for key: {}", key.chars().take(50).collect::<String>());
+            tracing::info!(
+                "Cache hit for key: {}",
+                key.chars().take(50).collect::<String>()
+            );
             Some(entry.translation.clone())
         } else {
-            tracing::debug!("Cache miss for key: {}", key.chars().take(50).collect::<String>());
+            tracing::debug!(
+                "Cache miss for key: {}",
+                key.chars().take(50).collect::<String>()
+            );
             None
         }
     }
@@ -91,11 +97,19 @@ impl TranslationCache {
         {
             let mut cache = self.cache.lock().expect("Cache mutex poisoned");
             cache.insert(key.clone(), entry);
-            tracing::info!("Cached translation for key: {}", key.chars().take(50).collect::<String>());
+            tracing::info!(
+                "Cached translation for key: {}",
+                key.chars().take(50).collect::<String>()
+            );
 
             // Check if cache size exceeds limit
             if cache.len() > MAX_CACHE_SIZE {
-                tracing::info!("Cache size {} exceeds limit {}, removing oldest {} entries", cache.len(), MAX_CACHE_SIZE, CLEANUP_SIZE);
+                tracing::info!(
+                    "Cache size {} exceeds limit {}, removing oldest {} entries",
+                    cache.len(),
+                    MAX_CACHE_SIZE,
+                    CLEANUP_SIZE
+                );
 
                 // Collect all entries with their keys and timestamps
                 let mut entries: Vec<(String, i64)> = cache
@@ -122,7 +136,9 @@ impl TranslationCache {
     }
 
     /// Loads cache from file
-    fn load_from_file(path: &std::path::Path) -> Result<HashMap<String, CacheEntry>, Box<dyn std::error::Error>> {
+    fn load_from_file(
+        path: &std::path::Path,
+    ) -> Result<HashMap<String, CacheEntry>, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
         let cache: HashMap<String, CacheEntry> = serde_json::from_str(&content)?;
         tracing::info!("Loaded {} entries from cache file", cache.len());
@@ -163,11 +179,11 @@ impl Default for TranslationCache {
             .unwrap_or_else(|| PathBuf::from("."))
             .join("ai-translate")
             .join("translation_cache.json");
-        
+
         if let Some(parent) = cache_file.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        
+
         Self::new(cache_file)
     }
 }
@@ -182,7 +198,7 @@ mod tests {
         let key1 = TranslationCache::generate_key("hello", "Chinese");
         let key2 = TranslationCache::generate_key("hello", "Japanese");
         let key3 = TranslationCache::generate_key("world", "Chinese");
-        
+
         assert_ne!(key1, key2);
         assert_ne!(key1, key3);
         assert_eq!(key1, TranslationCache::generate_key("hello", "Chinese"));
@@ -195,10 +211,10 @@ mod tests {
         let cache = TranslationCache::new(cache_file.clone());
 
         cache.set("hello", "Chinese", "你好".to_string());
-        
+
         let result = cache.get("hello", "Chinese");
         assert_eq!(result, Some("你好".to_string()));
-        
+
         let result = cache.get("hello", "Japanese");
         assert_eq!(result, None);
 
@@ -210,12 +226,12 @@ mod tests {
     fn test_cache_persistence() {
         let temp_dir = env::temp_dir();
         let cache_file = temp_dir.join("test_cache_persist.json");
-        
+
         {
             let cache = TranslationCache::new(cache_file.clone());
             cache.set("test", "English", "test result".to_string());
         }
-        
+
         {
             let cache = TranslationCache::new(cache_file.clone());
             let result = cache.get("test", "English");
@@ -250,7 +266,11 @@ mod tests {
 
         // Add more entries than the limit
         for i in 0..1500 {
-            cache.set(&format!("test_{}", i), "English", format!("translation_{}", i));
+            cache.set(
+                &format!("test_{}", i),
+                "English",
+                format!("translation_{}", i),
+            );
         }
 
         // Verify cache size is within limit
@@ -258,7 +278,11 @@ mod tests {
             let cache_inner = cache.cache.lock().expect("Cache mutex poisoned");
             cache_inner.len()
         };
-        assert!(cache_size <= 1000, "Cache size {} should be <= 1000", cache_size);
+        assert!(
+            cache_size <= 1000,
+            "Cache size {} should be <= 1000",
+            cache_size
+        );
 
         // Verify newer entries exist
         assert!(cache.get("test_1499", "English").is_some());

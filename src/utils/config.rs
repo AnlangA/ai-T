@@ -97,13 +97,7 @@ impl AppConfig {
     /// Returns a list of supported TTS voices.
     pub fn get_supported_voices() -> Vec<&'static str> {
         vec![
-            "Tongtong",
-            "Chuichui",
-            "Xiaochen",
-            "Jam",
-            "Kazi",
-            "Douji",
-            "Luodo",
+            "Tongtong", "Chuichui", "Xiaochen", "Jam", "Kazi", "Douji", "Luodo",
         ]
     }
 
