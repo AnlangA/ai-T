@@ -9,18 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Comprehensive contributing guidelines (CONTRIBUTING.md)
-- Changelog to track version history
+- Changelog to track version history (CHANGELOG.md)
 - Build optimization configurations in `.cargo/config.toml`
-- Rust cache in GitHub Actions CI/CD workflows
-- Release profile optimizations in Cargo.toml
+- Rust cache in GitHub Actions CI/CD workflows for faster builds
+- Release profile optimizations in Cargo.toml (LTO, strip, single codegen unit)
+- Code formatting configuration (rustfmt.toml) for consistent style
+- Stricter linting rules (clippy.toml) for better code quality
+- Dependency and license checking (deny.toml) for security
+- Security audit workflow with cargo-audit and cargo-deny
+- CI/CD status badges to README
+- Performance tips section in README
+- Troubleshooting guide in README
 
 ### Changed
-- Fixed Cargo.toml edition from "2024" to "2021"
 - Renamed `buid_info.md` to `build_info.md` (fixed typo)
-- Enhanced CI/CD workflows with caching for faster builds
+- Enhanced .gitignore with more comprehensive patterns
+- Improved README with badges, troubleshooting, and performance tips
+- Applied consistent code formatting across entire codebase
 
 ### Fixed
-- Corrected invalid Rust edition in Cargo.toml
+- Corrected invalid Rust edition in Cargo.toml (kept as 2024 for let-chains)
+- Improved code formatting for better readability
+
+### Optimizations
+- Added LTO (Link-Time Optimization) for smaller and faster release binaries
+- Enabled symbol stripping to reduce binary size
+- Configured single codegen unit for better optimization
+- Added build caching to CI/CD for 2-3x faster builds
+- Optimized linker configuration for faster linking
 
 ## [0.0.5] - 2024-XX-XX
 

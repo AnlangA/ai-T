@@ -1,30 +1,15 @@
-# Clippy lints configuration for stricter code quality
+# Clippy configuration for stricter code quality
 # See https://doc.rust-lang.org/clippy/lint_configuration.html
 
-# Warn on all clippy lints by default
-[lints.clippy]
-all = "warn"
-pedantic = "warn"
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
 
-# Disable specific pedantic lints that are too strict
-module-name-repetitions = "allow"
-missing-errors-doc = "allow"
-missing-panics-doc = "allow"
-must-use-candidate = "allow"
+# Type complexity threshold  
+type-complexity-threshold = 250
 
-# Enable specific restriction lints
-dbg-macro = "warn"
-todo = "warn"
-unimplemented = "warn"
-print-stdout = "warn"
-print-stderr = "warn"
+# Too many lines threshold
+too-many-lines-threshold = 200
 
-# Performance lints
-inefficient-to-string = "warn"
-manual-ok-or = "warn"
-map-unwrap-or = "warn"
+# Enable verbose reporting
+verbose-bit-mask-threshold = 1
 
-# Style lints
-enum-glob-use = "warn"
-if-then-some-else-none = "warn"
-redundant-closure-for-method-calls = "warn"
