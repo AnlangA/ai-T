@@ -61,120 +61,191 @@ impl SettingsPanel {
             .show(ctx, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical(|ui| {
-                        ui.heading("Appearance Settings");
-                        ui.add_space(10.0);
-                        ui.separator();
-                        ui.add_space(10.0);
-
-                        ui.label("Font Size:");
-                        ui.add_space(5.0);
-
-                        ui.add(
-                            Slider::new(&mut self.font_size, 12.0..=24.0)
-                                .step_by(1.0)
-                                .suffix(" px")
-                                .show_value(true),
-                        );
-                        ui.add_space(10.0);
-
-                        ui.label("Theme:");
-                        ui.add_space(5.0);
-
+                        // Appearance Section
                         ui.horizontal(|ui| {
-                            ui.radio_value(&mut self.dark_theme, true, "Dark");
-                            ui.radio_value(&mut self.dark_theme, false, "Light");
+                            ui.label(RichText::new("🎨 Appearance Settings")
+                                .strong()
+                                .size(18.0));
+                        });
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.add_space(12.0);
+
+                        // Font Size
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("📏 Font Size:").size(14.0));
+                            ui.add_space(10.0);
+                            ui.add(
+                                Slider::new(&mut self.font_size, 12.0..=24.0)
+                                    .step_by(1.0)
+                                    .suffix(" px")
+                                    .show_value(true)
+                                    .min_size(200.0),
+                            );
+                        });
+                        ui.add_space(15.0);
+
+                        // Theme
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🌗 Theme:").size(14.0));
+                            ui.add_space(10.0);
+                            
+                            let dark_btn = egui::Button::new(RichText::new("🌑 Dark").size(13.0))
+                                .corner_radius(6.0)
+                                .fill(if self.dark_theme {
+                                    Color32::from_rgba_premultiplied(76, 175, 80, 200)
+                                } else {
+                                    ui.visuals().panel_fill
+                                });
+                            if ui.add(dark_btn).clicked() {
+                                self.dark_theme = true;
+                            }
+                            
+                            ui.add_space(8.0);
+                            
+                            let light_btn = egui::Button::new(RichText::new("☀️ Light").size(13.0))
+                                .corner_radius(6.0)
+                                .fill(if !self.dark_theme {
+                                    Color32::from_rgba_premultiplied(255, 193, 7, 200)
+                                } else {
+                                    ui.visuals().panel_fill
+                                });
+                            if ui.add(light_btn).clicked() {
+                                self.dark_theme = false;
+                            }
                         });
 
-                        ui.add_space(15.0);
+                        ui.add_space(20.0);
                         ui.separator();
-                        ui.add_space(10.0);
+                        ui.add_space(12.0);
 
-                        ui.heading("TTS Settings");
-                        ui.add_space(10.0);
+                        // TTS Section
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🔊 TTS Settings")
+                                .strong()
+                                .size(18.0));
+                        });
+                        ui.add_space(12.0);
 
-                        ui.label("Voice:");
-                        ui.add_space(5.0);
+                        // Voice Selection
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🎤 Voice:").size(14.0));
+                            ui.add_space(10.0);
 
-                        let voices = AppConfig::get_supported_voices();
-                        egui::ComboBox::from_id_salt("voice_selector")
-                            .selected_text(&self.tts_voice)
-                            .show_ui(ui, |ui| {
-                                for voice in voices {
-                                    ui.selectable_value(&mut self.tts_voice, voice.to_string(), voice);
-                                }
-                            });
-
-                        ui.add_space(10.0);
-
-                        ui.label("Speed:");
-                        ui.add_space(5.0);
-
-                        ui.add(
-                            Slider::new(&mut self.tts_speed, 0.5..=2.0)
-                                .step_by(0.1)
-                                .suffix("x")
-                                .show_value(true),
-                        );
-
-                        ui.add_space(10.0);
-
-                        ui.label("Volume:");
-                        ui.add_space(5.0);
-
-                        ui.add(
-                            Slider::new(&mut self.tts_volume, 0.0..=10.0)
-                                .step_by(0.5)
-                                .show_value(true),
-                        );
-
+                            let voices = AppConfig::get_supported_voices();
+                            egui::ComboBox::from_id_salt("voice_selector")
+                                .selected_text(RichText::new(&self.tts_voice).size(14.0))
+                                .width(150.0)
+                                .show_ui(ui, |ui| {
+                                    for voice in voices {
+                                        ui.selectable_value(&mut self.tts_voice, voice.to_string(), voice);
+                                    }
+                                });
+                        });
                         ui.add_space(15.0);
+
+                        // Speed Slider
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("⚡ Speed:").size(14.0));
+                            ui.add_space(10.0);
+                            ui.add(
+                                Slider::new(&mut self.tts_speed, 0.5..=2.0)
+                                    .step_by(0.1)
+                                    .suffix("x")
+                                    .show_value(true)
+                                    .min_size(200.0),
+                            );
+                        });
+                        ui.add_space(15.0);
+
+                        // Volume Slider
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🔈 Volume:").size(14.0));
+                            ui.add_space(10.0);
+                            ui.add(
+                                Slider::new(&mut self.tts_volume, 0.0..=10.0)
+                                    .step_by(0.5)
+                                    .show_value(true)
+                                    .min_size(200.0),
+                            );
+                        });
+
+                        ui.add_space(20.0);
                         ui.separator();
-                        ui.add_space(10.0);
+                        ui.add_space(12.0);
 
-                        ui.heading("Cache Management");
-                        ui.add_space(10.0);
+                        // Cache Management Section
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("💾 Cache Management")
+                                .strong()
+                                .size(18.0));
+                        });
+                        ui.add_space(12.0);
 
-                        ui.label(format!("Translation cache: {} entries", translation_cache.as_ref().map_or(0, |c| c.len())));
-                        ui.add_space(5.0);
+                        // Translation Cache
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(
+                                format!("Translation cache: {} entries", translation_cache.as_ref().map_or(0, |c| c.len()))
+                            ).size(14.0));
+                        });
+                        ui.add_space(8.0);
 
-                        if ui
-                            .button("Clear Translation Cache")
+                        if ui.button(RichText::new("🗑️ Clear Translation Cache").size(13.0))
+                            .corner_radius(6.0)
+                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150))
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearTranslationCache);
                         }
 
-                        ui.add_space(10.0);
+                        ui.add_space(15.0);
 
-                        ui.label(format!("Audio cache: {} files", audio_cache_len));
-                        ui.add_space(5.0);
+                        // Audio Cache
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(
+                                format!("Audio cache: {} files", audio_cache_len)
+                            ).size(14.0));
+                        });
+                        ui.add_space(8.0);
 
-                        if ui.button("Clear Audio Cache").clicked() {
+                        if ui.button(RichText::new("🗑️ Clear Audio Cache").size(13.0))
+                            .corner_radius(6.0)
+                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150))
+                            .clicked()
+                        {
                             settings_changed = Some(SettingsChange::ClearAudioCache);
                         }
 
-                        ui.add_space(20.0);
+                        ui.add_space(25.0);
                         ui.separator();
-                        ui.add_space(10.0);
+                        ui.add_space(15.0);
 
+                        // Action Buttons
                         ui.vertical_centered(|ui| {
                             ui.horizontal(|ui| {
-                                if ui.button("Apply Changes").clicked() {
-                                    settings_changed = Some(SettingsChange::Theme(
+                                if ui.button(RichText::new("✓ Apply Settings").size(14.0))
+                                    .min_size([150.0, 35.0])
+                                    .corner_radius(8.0)
+                                    .fill(Color32::from_rgba_premultiplied(76, 175, 80, 230))
+                                    .clicked()
+                                {
+                                    settings_changed = Some(SettingsChange::All(
                                         self.font_size,
                                         self.dark_theme,
-                                    ));
-                                }
-
-                                if ui.button("Apply TTS Settings").clicked() {
-                                    settings_changed = Some(SettingsChange::Tts(
                                         self.tts_voice.clone(),
                                         self.tts_speed,
                                         self.tts_volume,
                                     ));
                                 }
 
-                                if ui.button("Close").clicked() {
+                                ui.add_space(15.0);
+
+                                if ui.button(RichText::new("✕ Close").size(14.0))
+                                    .min_size([100.0, 35.0])
+                                    .corner_radius(8.0)
+                                    .fill(Color32::from_rgba_premultiplied(108, 117, 125, 200))
+                                    .clicked()
+                                {
                                     close_requested = true;
                                 }
                             });
@@ -197,8 +268,7 @@ impl SettingsPanel {
 
 #[derive(Debug, Clone)]
 pub enum SettingsChange {
-    Theme(f32, bool),
-    Tts(String, f32, f32),
+    All(f32, bool, String, f32, f32),
     ClearTranslationCache,
     ClearAudioCache,
 }

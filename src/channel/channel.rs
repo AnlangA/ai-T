@@ -16,6 +16,12 @@ pub enum UiMessage {
     TranslationComplete,
     /// Translation was cancelled by the user
     TranslationCancelled,
+    /// Request to start TTS for source text
+    RequestSourceTts(String),
+    /// Request to start TTS for translation text
+    RequestTranslationTts(String),
+    /// Request to stop audio playback
+    StopPlayback,
     /// TTS conversion started for source text
     SourceTtsStarted,
     /// TTS conversion started for translation text

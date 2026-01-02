@@ -32,6 +32,9 @@ pub struct TranslateApp {
     tts_service: Arc<TtsService>,
     audio_cache: Arc<AudioCache>,
     audio_player: Arc<AudioPlayer>,
+    // Independent TTS cancellation flags
+    source_tts_cancel_requested: Arc<Mutex<bool>>,
+    translation_tts_cancel_requested: Arc<Mutex<bool>>,
 }
 
 impl TranslateApp {
@@ -101,6 +104,8 @@ impl TranslateApp {
             tts_service,
             audio_cache,
             audio_player,
+            source_tts_cancel_requested: Arc::new(Mutex::new(false)),
+            translation_tts_cancel_requested: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -111,6 +116,18 @@ impl TranslateApp {
         }
 
         tracing::info!("Starting new translation");
+
+        // Stop all audio activities when starting new translation
+        tracing::info!("Stopping audio playback...");
+        self.stop_audio();
+
+        tracing::info!("Cancelling source TTS conversion...");
+        self.cancel_source_tts();
+
+        tracing::info!("Cancelling translation TTS conversion...");
+        self.cancel_translation_tts();
+
+        tracing::info!("All audio activities stopped for new translation");
 
         // Reset cancel flag
         *self.cancel_requested.lock().expect("Cancel flag mutex poisoned") = false;
@@ -188,7 +205,8 @@ impl TranslateApp {
 
         tracing::info!("Starting TTS conversion for source text (length: {})", text.len());
 
-        // Get new audio file path
+        // Reset cancel flag and get new audio file path
+        *self.source_tts_cancel_requested.lock().expect("Cancel flag mutex poisoned") = false;
         let audio_path = self.audio_cache.get_new_audio_path(&text);
 
         // Update UI state
@@ -202,17 +220,31 @@ impl TranslateApp {
         let audio_cache = self.audio_cache.clone();
         let text_clone = text.clone();
         let ui_tx = self.ui_tx.clone();
+        let cancel_flag = self.source_tts_cancel_requested.clone();
 
         let handle = self.runtime_handle.clone();
 
         handle.spawn(async move {
+            // Check if cancellation was requested before starting
+            if *cancel_flag.lock().expect("Cancel flag mutex poisoned") {
+                tracing::info!("Source TTS cancelled before start");
+                return;
+            }
+
             let audio_path_str = audio_path.to_string_lossy().to_string();
 
             // Perform conversion
             let text_for_cache = text_clone.clone();
             let audio_path_for_cache = audio_path.clone();
             let ui_tx_clone = ui_tx.clone();
+            let cancel_flag_clone = cancel_flag.clone();
             tts_service.convert_async(&text_clone, &audio_path_str, move |status| {
+                // Check if cancellation was requested
+                if *cancel_flag_clone.lock().expect("Cancel flag mutex poisoned") {
+                    tracing::info!("Source TTS cancelled");
+                    return;
+                }
+
                 match status {
                     crate::services::tts::TtsStatus::Completed(path) => {
                         // Store in cache
@@ -246,7 +278,8 @@ impl TranslateApp {
 
         tracing::info!("Starting TTS conversion for translation (length: {})", text.len());
 
-        // Get new audio file path
+        // Reset cancel flag and get new audio file path
+        *self.translation_tts_cancel_requested.lock().expect("Cancel flag mutex poisoned") = false;
         let audio_path = self.audio_cache.get_new_audio_path(&text);
 
         // Update UI state
@@ -260,17 +293,31 @@ impl TranslateApp {
         let audio_cache = self.audio_cache.clone();
         let text_clone = text.clone();
         let ui_tx = self.ui_tx.clone();
+        let cancel_flag = self.translation_tts_cancel_requested.clone();
 
         let handle = self.runtime_handle.clone();
 
         handle.spawn(async move {
+            // Check if cancellation was requested before starting
+            if *cancel_flag.lock().expect("Cancel flag mutex poisoned") {
+                tracing::info!("Translation TTS cancelled before start");
+                return;
+            }
+
             let audio_path_str = audio_path.to_string_lossy().to_string();
 
             // Perform conversion
             let text_for_cache = text_clone.clone();
             let audio_path_for_cache = audio_path.clone();
             let ui_tx_clone = ui_tx.clone();
+            let cancel_flag_clone = cancel_flag.clone();
             tts_service.convert_async(&text_clone, &audio_path_str, move |status| {
+                // Check if cancellation was requested
+                if *cancel_flag_clone.lock().expect("Cancel flag mutex poisoned") {
+                    tracing::info!("Translation TTS cancelled");
+                    return;
+                }
+
                 match status {
                     crate::services::tts::TtsStatus::Completed(path) => {
                         // Store in cache
@@ -332,6 +379,26 @@ impl TranslateApp {
         }
     }
 
+    /// Cancels source TTS conversion
+    pub fn cancel_source_tts(&mut self) {
+        if self.display.is_source_converting() {
+            tracing::info!("Cancelling source TTS");
+            *self.source_tts_cancel_requested.lock().expect("Cancel flag mutex poisoned") = true;
+            // Clear converting state immediately
+            self.display.set_source_tts_converting(false);
+        }
+    }
+
+    /// Cancels translation TTS conversion
+    pub fn cancel_translation_tts(&mut self) {
+        if self.display.is_translation_converting() {
+            tracing::info!("Cancelling translation TTS");
+            *self.translation_tts_cancel_requested.lock().expect("Cancel flag mutex poisoned") = true;
+            // Clear converting state immediately
+            self.display.set_translation_tts_converting(false);
+        }
+    }
+
     /// Clears audio cache
     pub fn clear_audio_cache(&mut self) {
         tracing::info!("Clearing audio cache");
@@ -347,71 +414,95 @@ impl TranslateApp {
     }
 
     fn process_messages(&mut self, ctx: &egui::Context) {
-        let mut rx_opt = self.ui_rx.lock().unwrap();
-        if let Some(rx) = rx_opt.as_mut() {
-            while let Ok(msg) = rx.try_recv() {
-                match msg {
-                    UiMessage::UpdateTranslation(chunk) => {
-                        self.display.update_translation(chunk);
-                        ctx.request_repaint();
-                    }
-                    UiMessage::Error(err) => {
-                        tracing::error!("UI received translation error: {}", err);
-                        self.is_translating = false;
-                        self.display.set_translating(false);
-                        self.display.set_error(err);
-                        ctx.request_repaint();
-                    }
-                    UiMessage::TranslationComplete => {
-                        tracing::info!("Translation completed successfully");
-                        self.is_translating = false;
-                        self.display.set_translating(false);
+        // Collect all messages first to avoid borrowing issues
+        let messages: Vec<UiMessage> = {
+            let mut rx_opt = self.ui_rx.lock().unwrap();
+            if let Some(rx) = rx_opt.as_mut() {
+                let mut msgs = Vec::new();
+                while let Ok(msg) = rx.try_recv() {
+                    msgs.push(msg);
+                }
+                msgs
+            } else {
+                Vec::new()
+            }
+        };
 
-                        if let Some(logger) = &self.logger {
-                            logger.log(
-                                "Auto-detected",
-                                &self.config.target_language,
-                                &self.sidebar.get_source_text(),
-                                &self.display.translation,
-                            );
-                        }
+        // Process collected messages
+        for msg in messages {
+            match msg {
+                UiMessage::UpdateTranslation(chunk) => {
+                    self.display.update_translation(chunk);
+                    ctx.request_repaint();
+                }
+                UiMessage::Error(err) => {
+                    tracing::error!("UI received translation error: {}", err);
+                    self.is_translating = false;
+                    self.display.set_translating(false);
+                    self.display.set_error(err);
+                    ctx.request_repaint();
+                }
+                UiMessage::TranslationComplete => {
+                    tracing::info!("Translation completed successfully");
+                    self.is_translating = false;
+                    self.display.set_translating(false);
+
+                    if let Some(logger) = &self.logger {
+                        logger.log(
+                            "Auto-detected",
+                            &self.config.target_language,
+                            &self.sidebar.get_source_text(),
+                            &self.display.translation,
+                        );
                     }
-                    UiMessage::TranslationCancelled => {
-                        tracing::info!("Translation cancelled");
-                        self.is_translating = false;
-                        self.display.set_translating(false);
-                        ctx.request_repaint();
-                    }
-                    UiMessage::SourceTtsStarted => {
-                        tracing::info!("Source TTS started");
-                        ctx.request_repaint();
-                    }
-                    UiMessage::TranslationTtsStarted => {
-                        tracing::info!("Translation TTS started");
-                        ctx.request_repaint();
-                    }
-                    UiMessage::SourceTtsCompleted(path) => {
-                        tracing::info!("Source TTS completed: {}", path);
-                        self.display.set_source_tts_converting(false);
-                        self.display.set_source_audio_path(Some(path));
-                        ctx.request_repaint();
-                    }
-                    UiMessage::TranslationTtsCompleted(path) => {
-                        tracing::info!("Translation TTS completed: {}", path);
-                        self.display.set_translation_tts_converting(false);
-                        self.display.set_translation_audio_path(Some(path));
-                        ctx.request_repaint();
-                    }
-                    UiMessage::TtsFailed(err) => {
-                        tracing::error!("TTS failed: {}", err);
-                        self.display.set_source_tts_converting(false);
-                        self.display.set_translation_tts_converting(false);
-                        ctx.request_repaint();
-                    }
-                    UiMessage::PlaybackStateChanged(state) => {
-                        self.display.set_playback_state(state);
-                        ctx.request_repaint();
-                    }
+                }
+                UiMessage::TranslationCancelled => {
+                    tracing::info!("Translation cancelled");
+                    self.is_translating = false;
+                    self.display.set_translating(false);
+                    ctx.request_repaint();
+                }
+                UiMessage::RequestSourceTts(text) => {
+                    tracing::info!("Source TTS requested");
+                    self.start_source_tts(text);
+                }
+                UiMessage::RequestTranslationTts(text) => {
+                    tracing::info!("Translation TTS requested");
+                    self.start_translation_tts(text);
+                }
+                UiMessage::StopPlayback => {
+                    tracing::info!("Stop playback requested");
+                    self.stop_audio();
+                }
+                UiMessage::SourceTtsStarted => {
+                    tracing::info!("Source TTS started");
+                    ctx.request_repaint();
+                }
+                UiMessage::TranslationTtsStarted => {
+                    tracing::info!("Translation TTS started");
+                    ctx.request_repaint();
+                }
+                UiMessage::SourceTtsCompleted(path) => {
+                    tracing::info!("Source TTS completed: {}", path);
+                    self.display.set_source_tts_converting(false);
+                    self.display.set_source_audio_path(Some(path));
+                    ctx.request_repaint();
+                }
+                UiMessage::TranslationTtsCompleted(path) => {
+                    tracing::info!("Translation TTS completed: {}", path);
+                    self.display.set_translation_tts_converting(false);
+                    self.display.set_translation_audio_path(Some(path));
+                    ctx.request_repaint();
+                }
+                UiMessage::TtsFailed(err) => {
+                    tracing::error!("TTS failed: {}", err);
+                    self.display.set_source_tts_converting(false);
+                    self.display.set_translation_tts_converting(false);
+                    ctx.request_repaint();
+                }
+                UiMessage::PlaybackStateChanged(state) => {
+                    self.display.set_playback_state(state);
+                    ctx.request_repaint();
                 }
             }
         }
@@ -435,7 +526,8 @@ impl eframe::App for TranslateApp {
                 });
             });
 
-        let (translate_requested, cancel_requested, api_key_to_save) = self.sidebar.ui(ctx, self.is_translating);
+        let (translate_requested, cancel_requested, api_key_to_save) =
+            self.sidebar.ui(ctx, self.is_translating);
 
         if let Some(api_key) = api_key_to_save {
             self.config.api_key = api_key.clone();
@@ -461,15 +553,16 @@ impl eframe::App for TranslateApp {
 
         if let Some(change) = settings_changes {
             match change {
-                SettingsChange::Theme(new_font_size, new_dark_theme) => {
+                SettingsChange::All(new_font_size, new_dark_theme, voice, speed, volume) => {
+                    // Update theme settings
                     self.config.font_size = new_font_size;
                     self.config.dark_theme = new_dark_theme;
                     self.theme.font_size = new_font_size;
                     self.theme.dark = new_dark_theme;
                     self.theme.apply_style(ctx);
                     self.theme.set_visuals(ctx);
-                }
-                SettingsChange::Tts(voice, speed, volume) => {
+
+                    // Update TTS settings
                     self.config.tts_voice = voice.clone();
                     self.config.tts_speed = speed;
                     self.config.tts_volume = volume;
@@ -483,7 +576,9 @@ impl eframe::App for TranslateApp {
                     self.tts_service.update_config(tts_config);
 
                     tracing::info!(
-                        "TTS settings updated: voice={}, speed={}, volume={}",
+                        "All settings updated: font_size={}, theme={}, voice={}, speed={}, volume={}",
+                        new_font_size,
+                        if new_dark_theme { "Dark" } else { "Light" },
                         voice,
                         speed,
                         volume
@@ -498,8 +593,25 @@ impl eframe::App for TranslateApp {
             }
         }
 
-        let (play_source_clicked, source_audio_to_play, play_translation_clicked, translation_audio_to_play) =
+        let (play_source_clicked, source_audio_to_play, play_translation_clicked, translation_audio_to_play,
+            start_source_tts, start_translation_tts, cancel_source_tts, cancel_translation_tts) =
             self.display.ui(ctx, self.theme.font_size);
+
+        // Handle source TTS start
+        if start_source_tts {
+            let source_text = self.display.input_text().to_string();
+            if !source_text.trim().is_empty() {
+                self.start_source_tts(source_text);
+            }
+        }
+
+        // Handle translation TTS start
+        if start_translation_tts {
+            let translation_text = self.display.translation.clone();
+            if !translation_text.trim().is_empty() {
+                self.start_translation_tts(translation_text);
+            }
+        }
 
         // Handle source audio button click
         if play_source_clicked {
@@ -515,24 +627,20 @@ impl eframe::App for TranslateApp {
             }
         }
 
-        // Auto-start TTS for source text when translation completes
-        if !self.is_translating && !self.display.translation.is_empty() {
-            let source_text = self.sidebar.get_source_text();
-            if !source_text.is_empty()
-                && self.display.get_source_audio_path().is_none()
-                && !self.display.is_source_converting()
-            {
-                self.start_source_tts(source_text);
-            }
-
-            let translation_text = self.display.translation.clone();
-            if !translation_text.is_empty()
-                && self.display.get_translation_audio_path().is_none()
-                && !self.display.is_translation_converting()
-            {
-                self.start_translation_tts(translation_text);
-            }
+        // Handle source TTS cancel
+        if cancel_source_tts {
+            self.cancel_source_tts();
+            ctx.request_repaint(); // Force UI repaint to show cancel immediately
         }
+
+        // Handle translation TTS cancel
+        if cancel_translation_tts {
+            self.cancel_translation_tts();
+            ctx.request_repaint(); // Force UI repaint to show cancel immediately
+        }
+
+        // Note: TTS is now manually triggered by user buttons
+        // Removed auto-start TTS logic to give users more control
 
         // Request repaint to ensure continuous UI updates
         // This enables smooth animations (e.g., spinner) without requiring mouse movement

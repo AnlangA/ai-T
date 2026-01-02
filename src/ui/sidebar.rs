@@ -96,6 +96,9 @@ impl Sidebar {
                         }
                     }
                 });
+
+                // Ensure translate and cancel buttons are properly sized
+                ui.add_space(5.0);
             });
 
         (translate_requested, cancel_requested, api_key_to_save)
