@@ -115,7 +115,7 @@ impl DisplayPanel {
     }
 
     /// Creates a styled button for audio playback
-    fn create_audio_button(&self, ui: &mut egui::Ui, converting: bool, audio_path: Option<&str>, is_source: bool, enabled: bool) -> egui::Response {
+    fn create_audio_button(&self, ui: &mut egui::Ui, converting: bool, audio_path: Option<&str>, _is_source: bool, enabled: bool) -> egui::Response {
         let button_text = if converting {
             format!("⏳ Converting")
         } else if let Some(path) = audio_path {

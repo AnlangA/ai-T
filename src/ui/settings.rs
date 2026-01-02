@@ -79,8 +79,7 @@ impl SettingsPanel {
                                 Slider::new(&mut self.font_size, 12.0..=24.0)
                                     .step_by(1.0)
                                     .suffix(" px")
-                                    .show_value(true)
-                                    .min_size(200.0),
+                                    .show_value(true),
                             );
                         });
                         ui.add_space(15.0);
@@ -89,7 +88,7 @@ impl SettingsPanel {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new("🌗 Theme:").size(14.0));
                             ui.add_space(10.0);
-                            
+
                             let dark_btn = egui::Button::new(RichText::new("🌑 Dark").size(13.0))
                                 .corner_radius(6.0)
                                 .fill(if self.dark_theme {
@@ -100,9 +99,9 @@ impl SettingsPanel {
                             if ui.add(dark_btn).clicked() {
                                 self.dark_theme = true;
                             }
-                            
+
                             ui.add_space(8.0);
-                            
+
                             let light_btn = egui::Button::new(RichText::new("☀️ Light").size(13.0))
                                 .corner_radius(6.0)
                                 .fill(if !self.dark_theme {
@@ -152,8 +151,7 @@ impl SettingsPanel {
                                 Slider::new(&mut self.tts_speed, 0.5..=2.0)
                                     .step_by(0.1)
                                     .suffix("x")
-                                    .show_value(true)
-                                    .min_size(200.0),
+                                    .show_value(true),
                             );
                         });
                         ui.add_space(15.0);
@@ -165,8 +163,7 @@ impl SettingsPanel {
                             ui.add(
                                 Slider::new(&mut self.tts_volume, 0.0..=10.0)
                                     .step_by(0.5)
-                                    .show_value(true)
-                                    .min_size(200.0),
+                                    .show_value(true),
                             );
                         });
 
@@ -190,9 +187,9 @@ impl SettingsPanel {
                         });
                         ui.add_space(8.0);
 
-                        if ui.button(RichText::new("🗑️ Clear Translation Cache").size(13.0))
+                        if ui.add(egui::Button::new(RichText::new("🗑️ Clear Translation Cache").size(13.0))
                             .corner_radius(6.0)
-                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150))
+                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150)))
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearTranslationCache);
@@ -208,9 +205,9 @@ impl SettingsPanel {
                         });
                         ui.add_space(8.0);
 
-                        if ui.button(RichText::new("🗑️ Clear Audio Cache").size(13.0))
+                        if ui.add(egui::Button::new(RichText::new("🗑️ Clear Audio Cache").size(13.0))
                             .corner_radius(6.0)
-                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150))
+                            .fill(Color32::from_rgba_premultiplied(220, 53, 69, 150)))
                             .clicked()
                         {
                             settings_changed = Some(SettingsChange::ClearAudioCache);
@@ -223,10 +220,9 @@ impl SettingsPanel {
                         // Action Buttons
                         ui.vertical_centered(|ui| {
                             ui.horizontal(|ui| {
-                                if ui.button(RichText::new("✓ Apply Settings").size(14.0))
-                                    .min_size([150.0, 35.0])
+                                if ui.add(egui::Button::new(RichText::new("✓ Apply Settings").size(14.0))
                                     .corner_radius(8.0)
-                                    .fill(Color32::from_rgba_premultiplied(76, 175, 80, 230))
+                                    .fill(Color32::from_rgba_premultiplied(76, 175, 80, 230)))
                                     .clicked()
                                 {
                                     settings_changed = Some(SettingsChange::All(
@@ -240,10 +236,9 @@ impl SettingsPanel {
 
                                 ui.add_space(15.0);
 
-                                if ui.button(RichText::new("✕ Close").size(14.0))
-                                    .min_size([100.0, 35.0])
+                                if ui.add(egui::Button::new(RichText::new("✕ Close").size(14.0))
                                     .corner_radius(8.0)
-                                    .fill(Color32::from_rgba_premultiplied(108, 117, 125, 200))
+                                    .fill(Color32::from_rgba_premultiplied(108, 117, 125, 200)))
                                     .clicked()
                                 {
                                     close_requested = true;
