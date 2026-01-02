@@ -16,6 +16,7 @@ pub enum PlaybackState {
     Idle,
     /// Audio is currently playing
     Playing(String),
+    #[allow(dead_code)]
     /// Playback completed successfully
     Completed,
     /// Playback failed with an error message
@@ -48,6 +49,23 @@ impl AudioPlayer {
             self.get_state(),
             PlaybackState::Playing(_)
         )
+    }
+
+    /// Updates playback state if playback has finished
+    pub fn update_state_if_finished(&self) {
+        if self.is_playing() {
+            let mut process = self.current_process.lock().expect("Process mutex poisoned");
+            if let Some(mut child) = process.take() {
+                // Try to check if process has finished
+                if let Ok(Some(_)) = child.try_wait() {
+                    tracing::info!("Audio playback finished");
+                    *self.state.lock().expect("State mutex poisoned") = PlaybackState::Idle;
+                } else {
+                    // Process still running, put it back
+                    *process = Some(child);
+                }
+            }
+        }
     }
 
     /// Stops the current playback if any
@@ -116,6 +134,7 @@ impl AudioPlayer {
     }
 
     /// Waits for the current playback to complete
+    #[allow(dead_code)]
     pub fn wait_for_completion(&self) -> Result<(), Box<dyn std::error::Error>> {
         let process_opt = self.current_process.lock().expect("Process mutex poisoned").take();
 

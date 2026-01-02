@@ -48,8 +48,10 @@ impl TtsConfig {
 /// TTS conversion task status
 #[derive(Debug, Clone, PartialEq)]
 pub enum TtsStatus {
+    #[allow(dead_code)]
     /// Task is idle, not started
     Idle,
+    #[allow(dead_code)]
     /// Conversion in progress
     Converting,
     /// Conversion completed, audio ready
@@ -62,6 +64,7 @@ pub enum TtsStatus {
 pub struct TtsService {
     api_key: String,
     config: Arc<Mutex<TtsConfig>>,
+    #[allow(dead_code)]
     runtime_handle: tokio::runtime::Handle,
 }
 
@@ -89,42 +92,6 @@ impl TtsService {
         self.config.lock().expect("Config mutex poisoned").clone()
     }
 
-    /// Converts text to audio and saves to the specified file
-    pub fn convert_to_file(&self, text: &str, output_path: &str) -> TtsStatus {
-        if text.trim().is_empty() {
-            return TtsStatus::Failed("Text is empty".to_string());
-        }
-
-        let config = self.get_config();
-        let api_key = self.api_key.clone();
-        let text_owned = text.to_string();
-        let output_path_owned = output_path.to_string();
-        let output_path_for_result = output_path_owned.clone();
-
-        // Create the converter
-        let converter = Text2Audio::new(&api_key)
-            .with_model(Model::GLM4_7)
-            .with_coding_plan(true)
-            .with_voice(config.voice)
-            .with_speed(config.speed)
-            .with_volume(config.volume)
-            .with_max_segment_length(config.max_segment_length)
-            .with_parallel(config.parallel);
-
-        // Use block_on to run the async conversion
-        let rt = tokio::runtime::Handle::try_current()
-            .or_else(|_| tokio::runtime::Runtime::new().map(|rt| rt.handle().clone()))
-            .expect("Failed to get or create Tokio runtime");
-
-        let result = rt.block_on(converter.convert(&text_owned, &output_path_owned));
-
-        match result {
-            Ok(()) => TtsStatus::Completed(output_path_for_result),
-            Err(e) => TtsStatus::Failed(format!("Conversion error: {}", e)),
-        }
-    }
-
-    /// Converts text to audio asynchronously (for long texts)
     pub fn convert_async<F>(&self, text: &str, output_path: &str, callback: F)
     where
         F: FnOnce(TtsStatus) + Send + 'static,

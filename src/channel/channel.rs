@@ -16,10 +16,13 @@ pub enum UiMessage {
     TranslationComplete,
     /// Translation was cancelled by the user
     TranslationCancelled,
+    #[allow(dead_code)]
     /// Request to start TTS for source text
     RequestSourceTts(String),
+    #[allow(dead_code)]
     /// Request to start TTS for translation text
     RequestTranslationTts(String),
+    #[allow(dead_code)]
     /// Request to stop audio playback
     StopPlayback,
     /// TTS conversion started for source text
@@ -32,6 +35,7 @@ pub enum UiMessage {
     TranslationTtsCompleted(String),
     /// TTS conversion failed
     TtsFailed(String),
+    #[allow(dead_code)]
     /// Audio playback state changed
     PlaybackStateChanged(PlaybackState),
 }
