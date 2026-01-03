@@ -8,6 +8,39 @@ use crate::error::Result;
 use crate::utils::cache::TranslationCache;
 use std::sync::Arc;
 
+/// Parses translation response to extract translation and optional keyword analysis
+fn parse_translation_and_keywords(
+    response: &str,
+    enable_keyword_analysis: bool,
+) -> (String, Option<String>) {
+    if !enable_keyword_analysis {
+        return (response.to_string(), None);
+    }
+
+    // Try to extract [Translation] and [Terminology] sections
+    if response.contains("[Translation]") && response.contains("[Terminology]") {
+        if let Some(translation_start) = response.find("[Translation]") {
+            if let Some(terminology_start) = response.find("[Terminology]") {
+                let translation = response
+                    [translation_start + "[Translation]".len()..terminology_start]
+                    .trim()
+                    .to_string();
+                let terminology = &response[terminology_start + "[Terminology]".len()..];
+                let terminology = terminology.trim().to_string();
+
+                return if terminology.is_empty() {
+                    (translation, None)
+                } else {
+                    (translation, Some(terminology))
+                };
+            }
+        }
+    }
+
+    // If keyword analysis was enabled but sections not found, treat entire response as translation
+    (response.to_string(), None)
+}
+
 /// Translator service for handling translation requests.
 pub struct Translator {
     client: ApiClient,
@@ -56,12 +89,18 @@ impl Translator {
             "Starting translation"
         );
 
-        // Check cache first
+        // Check cache based on current keyword analysis setting
+        // Cache key includes source text, target language, and keyword analysis bool
         let cache = self.cache.clone();
-        if let Some(cached_translation) = cache.get(&text, &target_language) {
+        if let Some((cached_translation, cached_keyword_analysis)) =
+            cache.get(&text, &target_language, enable_keyword_analysis)
+        {
             tracing::info!("Using cached translation");
             // Send cached result in chunks to simulate streaming
             let _ = tx.send(Ok(cached_translation));
+            if let Some(keyword_analysis) = cached_keyword_analysis {
+                let _ = tx.send(Ok(keyword_analysis));
+            }
             let _ = tx.send(Ok(String::new())); // Signal completion
             return rx;
         }
@@ -174,15 +213,16 @@ Provide ONLY the translation with no additional commentary, explanations, or for
         let cache_for_storage = cache.clone();
         let text_for_cache = text.clone();
         let lang_for_cache = target_language.clone();
+        let enable_keyword_analysis_for_cache = enable_keyword_analysis;
 
         tokio::spawn(async move {
             let mut stream_rx = client.stream_chat(messages).await;
-            let mut full_translation = String::new();
+            let mut full_response = String::new();
 
             while let Some(result) = stream_rx.recv().await {
                 match &result {
                     Ok(chunk) if !chunk.is_empty() => {
-                        full_translation.push_str(chunk);
+                        full_response.push_str(chunk);
                     }
                     _ => {}
                 }
@@ -190,8 +230,18 @@ Provide ONLY the translation with no additional commentary, explanations, or for
             }
 
             // Store in cache after successful translation
-            if !full_translation.is_empty() {
-                cache_for_storage.set(&text_for_cache, &lang_for_cache, full_translation);
+            if !full_response.is_empty() {
+                let (translation, keyword_analysis) = parse_translation_and_keywords(
+                    &full_response,
+                    enable_keyword_analysis_for_cache,
+                );
+                cache_for_storage.set(
+                    &text_for_cache,
+                    &lang_for_cache,
+                    enable_keyword_analysis_for_cache,
+                    translation,
+                    keyword_analysis,
+                );
             }
 
             tracing::debug!("Translation stream completed");

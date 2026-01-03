@@ -32,6 +32,22 @@ pub struct AppConfig {
     /// Enable keyword analysis during translation
     #[serde(default = "default_keyword_analysis")]
     pub enable_keyword_analysis: bool,
+    /// Enable thinking mode in AI model
+    #[serde(default = "default_think_enable")]
+    pub think_enable: bool,
+    /// Enable coding plan mode in TTS
+    #[serde(default = "default_coding_plan")]
+    pub coding_plan: bool,
+}
+
+/// Default think_enable setting
+fn default_think_enable() -> bool {
+    true
+}
+
+/// Default coding_plan setting
+fn default_coding_plan() -> bool {
+    true
 }
 
 /// Default keyword analysis setting
@@ -65,6 +81,8 @@ impl Default for AppConfig {
             tts_speed: default_speed(),
             tts_volume: default_volume(),
             enable_keyword_analysis: default_keyword_analysis(),
+            think_enable: default_think_enable(),
+            coding_plan: default_coding_plan(),
         }
     }
 }
@@ -201,6 +219,8 @@ mod tests {
             tts_speed: 1.0,
             tts_volume: 1.0,
             enable_keyword_analysis: true,
+            think_enable: true,
+            coding_plan: true,
         };
 
         let json = serde_json::to_string(&config).unwrap();
@@ -214,5 +234,7 @@ mod tests {
         assert_eq!(config.tts_speed, deserialized.tts_speed);
         assert_eq!(config.tts_volume, deserialized.tts_volume);
         assert_eq!(config.enable_keyword_analysis, deserialized.enable_keyword_analysis);
+        assert_eq!(config.think_enable, deserialized.think_enable);
+        assert_eq!(config.coding_plan, deserialized.coding_plan);
     }
 }

@@ -3,7 +3,7 @@ use crate::channel::channel::UiMessage;
 use crate::services::audio::{AudioCache, AudioPlayer};
 use crate::services::tts::{TtsConfig, TtsService};
 use crate::ui::display::DisplayPanel;
-use crate::ui::settings::{SettingsChange, SettingsPanel};
+use crate::ui::settings::{SettingsChange, SettingsPanel, ThemePreference};
 use crate::ui::sidebar::Sidebar;
 use crate::ui::theme::Theme;
 use crate::utils::cache::TranslationCache;
@@ -64,6 +64,8 @@ impl TranslateApp {
             config.tts_speed,
             config.tts_volume,
             config.enable_keyword_analysis,
+            config.think_enable,
+            config.coding_plan,
         );
 
         let logger = Logger::new("translations.log").ok().map(Arc::new);
@@ -79,6 +81,8 @@ impl TranslateApp {
             AppConfig::parse_voice(&config.tts_voice),
             config.tts_speed,
             config.tts_volume,
+            config.coding_plan,
+            config.think_enable,
         );
         tts_service.update_config(tts_config);
 
@@ -161,26 +165,37 @@ impl TranslateApp {
         handle.spawn(async move {
             let mut stream_rx = translator.translate(source_text, target_language, enable_keyword_analysis);
 
-            while let Some(result) = stream_rx.recv().await {
-                // Check if cancellation was requested
-                if *cancel_flag.lock().expect("Cancel flag mutex poisoned") {
-                    tracing::info!("Translation cancelled by user");
-                    let _ = ui_tx.send(UiMessage::TranslationCancelled);
-                    break;
-                }
-
-                match result {
-                    Ok(chunk) => {
-                        if chunk.is_empty() {
-                            let _ = ui_tx.send(UiMessage::TranslationComplete);
-                            break;
-                        }
-                        let _ = ui_tx.send(UiMessage::UpdateTranslation(chunk));
-                    }
-                    Err(e) => {
-                        tracing::error!("Translation error: {}", e);
-                        let _ = ui_tx.send(UiMessage::Error(e.to_string()));
+            loop {
+                tokio::select! {
+                    // Check cancel flag continuously
+                    _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)), if {
+                        *cancel_flag.lock().expect("Cancel flag mutex poisoned")
+                    } => {
+                        tracing::info!("Translation cancelled by user");
+                        let _ = ui_tx.send(UiMessage::TranslationCancelled);
                         break;
+                    }
+                    // Receive stream data
+                    result = stream_rx.recv() => {
+                        match result {
+                            Some(Ok(chunk)) => {
+                                if chunk.is_empty() {
+                                    let _ = ui_tx.send(UiMessage::TranslationComplete);
+                                    break;
+                                }
+                                let _ = ui_tx.send(UiMessage::UpdateTranslation(chunk));
+                            }
+                            Some(Err(e)) => {
+                                tracing::error!("Translation error: {}", e);
+                                let _ = ui_tx.send(UiMessage::Error(e.to_string()));
+                                break;
+                            }
+                            None => {
+                                // Stream closed
+                                tracing::info!("Translation stream ended");
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -595,6 +610,7 @@ impl eframe::App for TranslateApp {
 
         if cancel_requested {
             self.cancel_translation();
+            ctx.request_repaint(); // Force immediate UI update to show cancel
         }
 
         let (_show_settings, settings_changes) =
@@ -603,36 +619,82 @@ impl eframe::App for TranslateApp {
 
         if let Some(change) = settings_changes {
             match change {
-                SettingsChange::All(new_font_size, new_dark_theme, voice, speed, volume, keyword_analysis) => {
-                    // Update theme settings
+                SettingsChange::FontSize(new_font_size) => {
                     self.config.font_size = new_font_size;
-                    self.config.dark_theme = new_dark_theme;
                     self.theme.font_size = new_font_size;
-                    self.theme.dark = new_dark_theme;
                     self.theme.apply_style(ctx);
+                    tracing::info!("Font size changed to: {}", new_font_size);
+                }
+                SettingsChange::Theme(theme_preference) => {
+                    let dark_theme = matches!(theme_preference, ThemePreference::Dark | ThemePreference::System);
+                    self.config.dark_theme = dark_theme;
+                    self.theme.dark = dark_theme;
                     self.theme.set_visuals(ctx);
-
-                    // Update TTS settings
+                    tracing::info!("Theme changed to: {:?}", theme_preference);
+                }
+                SettingsChange::TtsVoice(voice) => {
                     self.config.tts_voice = voice.clone();
-                    self.config.tts_speed = speed;
-                    self.config.tts_volume = volume;
-
-                    // Update keyword analysis setting
-                    self.config.enable_keyword_analysis = keyword_analysis;
-
-                    // Update TTS service config
-                    let tts_config = TtsConfig::new(AppConfig::parse_voice(&voice), speed, volume);
-                    self.tts_service.update_config(tts_config);
-
-                    tracing::info!(
-                        "All settings updated: font_size={}, theme={}, voice={}, speed={}, volume={}, keyword_analysis={}",
-                        new_font_size,
-                        if new_dark_theme { "Dark" } else { "Light" },
-                        voice,
-                        speed,
-                        volume,
-                        keyword_analysis
+                    let tts_config = TtsConfig::new(
+                        AppConfig::parse_voice(&voice),
+                        self.config.tts_speed,
+                        self.config.tts_volume,
+                        self.config.coding_plan,
+                        self.config.think_enable,
                     );
+                    self.tts_service.update_config(tts_config);
+                    tracing::info!("TTS voice changed to: {}", voice);
+                }
+                SettingsChange::TtsSpeed(speed) => {
+                    self.config.tts_speed = speed;
+                    let tts_config = TtsConfig::new(
+                        AppConfig::parse_voice(&self.config.tts_voice),
+                        speed,
+                        self.config.tts_volume,
+                        self.config.coding_plan,
+                        self.config.think_enable,
+                    );
+                    self.tts_service.update_config(tts_config);
+                    tracing::info!("TTS speed changed to: {}", speed);
+                }
+                SettingsChange::TtsVolume(volume) => {
+                    self.config.tts_volume = volume;
+                    let tts_config = TtsConfig::new(
+                        AppConfig::parse_voice(&self.config.tts_voice),
+                        self.config.tts_speed,
+                        volume,
+                        self.config.coding_plan,
+                        self.config.think_enable,
+                    );
+                    self.tts_service.update_config(tts_config);
+                    tracing::info!("TTS volume changed to: {}", volume);
+                }
+                SettingsChange::KeywordAnalysis(enabled) => {
+                    self.config.enable_keyword_analysis = enabled;
+                    tracing::info!("Keyword analysis {}", if enabled { "enabled" } else { "disabled" });
+                }
+                SettingsChange::ThinkEnable(enabled) => {
+                    self.config.think_enable = enabled;
+                    let tts_config = TtsConfig::new(
+                        AppConfig::parse_voice(&self.config.tts_voice),
+                        self.config.tts_speed,
+                        self.config.tts_volume,
+                        self.config.coding_plan,
+                        self.config.think_enable,
+                    );
+                    self.tts_service.update_config(tts_config);
+                    tracing::info!("Thinking mode {}", if enabled { "enabled" } else { "disabled" });
+                }
+                SettingsChange::CodingPlan(enabled) => {
+                    self.config.coding_plan = enabled;
+                    let tts_config = TtsConfig::new(
+                        AppConfig::parse_voice(&self.config.tts_voice),
+                        self.config.tts_speed,
+                        self.config.tts_volume,
+                        self.config.coding_plan,
+                        self.config.think_enable,
+                    );
+                    self.tts_service.update_config(tts_config);
+                    tracing::info!("Coding plan mode {}", if enabled { "enabled" } else { "disabled" });
                 }
                 SettingsChange::ClearTranslationCache => {
                     self.clear_translation_cache();

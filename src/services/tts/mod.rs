@@ -19,6 +19,10 @@ pub struct TtsConfig {
     pub max_segment_length: usize,
     /// Number of parallel conversions
     pub parallel: usize,
+    /// Enable coding plan mode
+    pub coding_plan: bool,
+    /// Enable thinking mode
+    pub enable_thinking: bool,
 }
 
 impl Default for TtsConfig {
@@ -29,17 +33,21 @@ impl Default for TtsConfig {
             volume: 1.0,
             max_segment_length: 800,
             parallel: 5,
+            coding_plan: true,
+            enable_thinking: true,
         }
     }
 }
 
 impl TtsConfig {
     /// Creates a new TtsConfig with custom parameters
-    pub fn new(voice: Voice, speed: f32, volume: f32) -> Self {
+    pub fn new(voice: Voice, speed: f32, volume: f32, coding_plan: bool, enable_thinking: bool) -> Self {
         TtsConfig {
             voice,
             speed: speed.clamp(0.5, 2.0),
             volume: volume.clamp(0.0, 10.0),
+            coding_plan,
+            enable_thinking,
             ..Default::default()
         }
     }
@@ -109,7 +117,8 @@ impl TtsService {
         // Create the converter
         let converter = Text2Audio::new(&api_key)
             .with_model(Model::GLM4_7)
-            .with_coding_plan(true)
+            .with_thinking(config.enable_thinking)
+            .with_coding_plan(config.coding_plan)
             .with_voice(config.voice)
             .with_speed(config.speed)
             .with_volume(config.volume)
@@ -141,13 +150,16 @@ mod tests {
         let config = TtsConfig::default();
         assert_eq!(config.speed, 1.0);
         assert_eq!(config.volume, 1.0);
+        assert_eq!(config.coding_plan, true);
+        assert_eq!(config.enable_thinking, true);
     }
 
     #[test]
     fn test_tts_config_clamping() {
-        let config = TtsConfig::new(Voice::Tongtong, 3.0, 15.0);
+        let config = TtsConfig::new(Voice::Tongtong, 3.0, 15.0, true, false);
         assert_eq!(config.speed, 2.0); // Clamped to max
         assert_eq!(config.volume, 10.0); // Clamped to max
+        assert_eq!(config.enable_thinking, false);
     }
 
     #[test]

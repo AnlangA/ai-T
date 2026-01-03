@@ -9,10 +9,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-/// A cache entry containing the translated text
+/// A cache entry containing translated text and optional keyword analysis the translated text
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CacheEntry {
     translation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keyword_analysis: Option<String>,
     timestamp: i64,
 }
 
@@ -43,9 +45,12 @@ impl TranslationCache {
         }
     }
 
-    /// Generates a cache key from source text and target language
-    fn generate_key(source_text: &str, target_language: &str) -> String {
-        format!("{}::{}", target_language, source_text)
+    /// Generates a cache key from source text, target language, and keyword analysis setting
+    fn generate_key(source_text: &str, target_language: &str, enable_keyword_analysis: bool) -> String {
+        format!(
+            "{}::{}::{}",
+            target_language, enable_keyword_analysis, source_text
+        )
     }
 
     /// Retrieves a translation from the cache
@@ -54,12 +59,18 @@ impl TranslationCache {
     ///
     /// * `source_text` - The source text that was translated
     /// * `target_language` - The target language
+    /// * `enable_keyword_analysis` - Whether keyword analysis was enabled
     ///
     /// # Returns
     ///
-    /// Some(translation) if found in cache, None otherwise
-    pub fn get(&self, source_text: &str, target_language: &str) -> Option<String> {
-        let key = Self::generate_key(source_text, target_language);
+    /// Some((translation, keyword_analysis)) if found in cache, None otherwise
+    pub fn get(
+        &self,
+        source_text: &str,
+        target_language: &str,
+        enable_keyword_analysis: bool,
+    ) -> Option<(String, Option<String>)> {
+        let key = Self::generate_key(source_text, target_language, enable_keyword_analysis);
         let cache = self.cache.lock().expect("Cache mutex poisoned");
 
         if let Some(entry) = cache.get(&key) {
@@ -67,7 +78,7 @@ impl TranslationCache {
                 "Cache hit for key: {}",
                 key.chars().take(50).collect::<String>()
             );
-            Some(entry.translation.clone())
+            Some((entry.translation.clone(), entry.keyword_analysis.clone()))
         } else {
             tracing::debug!(
                 "Cache miss for key: {}",
@@ -83,14 +94,24 @@ impl TranslationCache {
     ///
     /// * `source_text` - The source text that was translated
     /// * `target_language` - The target language
+    /// * `enable_keyword_analysis` - Whether keyword analysis was enabled
     /// * `translation` - The translation result
-    pub fn set(&self, source_text: &str, target_language: &str, translation: String) {
+    /// * `keyword_analysis` - Optional keyword analysis result
+    pub fn set(
+        &self,
+        source_text: &str,
+        target_language: &str,
+        enable_keyword_analysis: bool,
+        translation: String,
+        keyword_analysis: Option<String>,
+    ) {
         const MAX_CACHE_SIZE: usize = 1000;
         const CLEANUP_SIZE: usize = 100;
 
-        let key = Self::generate_key(source_text, target_language);
+        let key = Self::generate_key(source_text, target_language, enable_keyword_analysis);
         let entry = CacheEntry {
             translation,
+            keyword_analysis,
             timestamp: chrono::Utc::now().timestamp(),
         };
 
@@ -195,13 +216,16 @@ mod tests {
 
     #[test]
     fn test_cache_key_generation() {
-        let key1 = TranslationCache::generate_key("hello", "Chinese");
-        let key2 = TranslationCache::generate_key("hello", "Japanese");
-        let key3 = TranslationCache::generate_key("world", "Chinese");
+        let key1 = TranslationCache::generate_key("hello", "Chinese", true);
+        let key2 = TranslationCache::generate_key("hello", "Japanese", false);
+        let key3 = TranslationCache::generate_key("world", "Chinese", true);
 
         assert_ne!(key1, key2);
         assert_ne!(key1, key3);
-        assert_eq!(key1, TranslationCache::generate_key("hello", "Chinese"));
+        assert_eq!(
+            key1,
+            TranslationCache::generate_key("hello", "Chinese", true)
+        );
     }
 
     #[test]
@@ -210,12 +234,12 @@ mod tests {
         let cache_file = temp_dir.join("test_cache.json");
         let cache = TranslationCache::new(cache_file.clone());
 
-        cache.set("hello", "Chinese", "你好".to_string());
+        cache.set("hello", "Chinese", false, "你好".to_string(), None);
 
-        let result = cache.get("hello", "Chinese");
-        assert_eq!(result, Some("你好".to_string()));
+        let result = cache.get("hello", "Chinese", false);
+        assert_eq!(result, Some(("你好".to_string(), None)));
 
-        let result = cache.get("hello", "Japanese");
+        let result = cache.get("hello", "Japanese", false);
         assert_eq!(result, None);
 
         // Cleanup
@@ -229,13 +253,22 @@ mod tests {
 
         {
             let cache = TranslationCache::new(cache_file.clone());
-            cache.set("test", "English", "test result".to_string());
+            cache.set(
+                "test",
+                "English",
+                true,
+                "test result".to_string(),
+                Some("keyword: test".to_string()),
+            );
         }
 
         {
             let cache = TranslationCache::new(cache_file.clone());
-            let result = cache.get("test", "English");
-            assert_eq!(result, Some("test result".to_string()));
+            let result = cache.get("test", "English", true);
+            assert_eq!(
+                result,
+                Some(("test result".to_string(), Some("keyword: test".to_string())))
+            );
         }
 
         // Cleanup
@@ -248,11 +281,11 @@ mod tests {
         let cache_file = temp_dir.join("test_cache_clear.json");
         let cache = TranslationCache::new(cache_file.clone());
 
-        cache.set("test", "Chinese", "测试".to_string());
-        assert!(cache.get("test", "Chinese").is_some());
+        cache.set("test", "Chinese", false, "测试".to_string(), None);
+        assert!(cache.get("test", "Chinese", false).is_some());
 
         cache.clear();
-        assert!(cache.get("test", "Chinese").is_none());
+        assert!(cache.get("test", "Chinese", false).is_none());
 
         // Cleanup
         let _ = fs::remove_file(cache_file);
@@ -269,7 +302,13 @@ mod tests {
             cache.set(
                 &format!("test_{}", i),
                 "English",
+                i % 2 == 0,
                 format!("translation_{}", i),
+                if i % 2 == 0 {
+                    Some(format!("keyword_{}", i))
+                } else {
+                    None
+                },
             );
         }
 
@@ -285,8 +324,8 @@ mod tests {
         );
 
         // Verify newer entries exist
-        assert!(cache.get("test_1499", "English").is_some());
-        assert!(cache.get("test_1400", "English").is_some());
+        assert!(cache.get("test_1499", "English", false).is_some());
+        assert!(cache.get("test_1400", "English", true).is_some());
 
         // Cleanup
         let _ = fs::remove_file(cache_file);

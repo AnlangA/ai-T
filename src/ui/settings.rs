@@ -3,13 +3,22 @@ use crate::utils::config::AppConfig;
 use egui::{self, *};
 use std::sync::Arc;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThemePreference {
+    Light,
+    Dark,
+    System,
+}
+
 pub struct SettingsPanel {
     pub font_size: f32,
-    pub dark_theme: bool,
+    pub theme_preference: ThemePreference,
     pub tts_voice: String,
     pub tts_speed: f32,
     pub tts_volume: f32,
     pub enable_keyword_analysis: bool,
+    pub think_enable: bool,
+    pub coding_plan: bool,
     show_panel: bool,
     #[allow(dead_code)]
     clear_translation_cache: bool,
@@ -21,11 +30,13 @@ impl Default for SettingsPanel {
     fn default() -> Self {
         SettingsPanel {
             font_size: 16.0,
-            dark_theme: true,
+            theme_preference: ThemePreference::Dark,
             tts_voice: "Tongtong".to_string(),
             tts_speed: 1.0,
             tts_volume: 1.0,
             enable_keyword_analysis: false,
+            think_enable: true,
+            coding_plan: true,
             show_panel: false,
             clear_translation_cache: false,
             clear_audio_cache: false,
@@ -41,14 +52,22 @@ impl SettingsPanel {
         tts_speed: f32,
         tts_volume: f32,
         enable_keyword_analysis: bool,
+        think_enable: bool,
+        coding_plan: bool,
     ) -> Self {
         SettingsPanel {
             font_size,
-            dark_theme,
+            theme_preference: if dark_theme {
+                ThemePreference::Dark
+            } else {
+                ThemePreference::Light
+            },
             tts_voice,
             tts_speed,
             tts_volume,
             enable_keyword_analysis,
+            think_enable,
+            coding_plan,
             show_panel: false,
             clear_translation_cache: false,
             clear_audio_cache: false,
@@ -62,7 +81,16 @@ impl SettingsPanel {
         audio_cache_len: usize,
     ) -> (bool, Option<SettingsChange>) {
         let mut settings_changed = None;
-        let mut close_requested = false;
+
+        // Track old values to detect changes
+        let old_font_size = self.font_size;
+        let old_theme_preference = self.theme_preference;
+        let old_tts_voice = self.tts_voice.clone();
+        let old_tts_speed = self.tts_speed;
+        let old_tts_volume = self.tts_volume;
+        let old_enable_keyword_analysis = self.enable_keyword_analysis;
+        let old_think_enable = self.think_enable;
+        let old_coding_plan = self.coding_plan;
 
         Window::new("Settings")
             .collapsible(true)
@@ -98,20 +126,11 @@ impl SettingsPanel {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new("🌗Theme:").size(14.0));
                             ui.add_space(10.0);
-
-                            let dark_btn = egui::Button::new(RichText::new("🌑 Dark").size(13.0))
-                                .corner_radius(6.0);
-                            if ui.add(dark_btn).clicked() {
-                                self.dark_theme = true;
-                            }
-
+                            ui.radio_value(&mut self.theme_preference, ThemePreference::Light, "🌞Light");
                             ui.add_space(8.0);
-
-                            let light_btn = egui::Button::new(RichText::new("☀️ Light").size(13.0))
-                                .corner_radius(6.0);
-                            if ui.add(light_btn).clicked() {
-                                self.dark_theme = false;
-                            }
+                            ui.radio_value(&mut self.theme_preference, ThemePreference::Dark, "🌑Dark");
+                            ui.add_space(8.0);
+                            ui.radio_value(&mut self.theme_preference, ThemePreference::System, "💻 System");
                         });
 
                         ui.add_space(20.0);
@@ -128,16 +147,43 @@ impl SettingsPanel {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new("🔍Keyword Analysis:").size(14.0));
                             ui.add_space(10.0);
-                            if ui
-                                .checkbox(&mut self.enable_keyword_analysis, "")
-                                .changed()
-                            {
-                                // Checkbox state changed
-                            }
+                            ui.checkbox(&mut self.enable_keyword_analysis, "");
                         });
                         ui.label(
                             RichText::new(
                                 "When enabled, analyze professional terms and provide explanations during translation. Each term on a separate line.",
+                            )
+                            .size(12.0)
+                            .weak()
+                            .color(Color32::GRAY),
+                        );
+                        ui.add_space(12.0);
+
+                        // Think Enable Toggle
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🌟Thinking Mode:").size(14.0));
+                            ui.add_space(10.0);
+                            ui.checkbox(&mut self.think_enable, "");
+                        });
+                        ui.label(
+                            RichText::new(
+                                "When enabled, TTS will use thinking mode for better speech generation quality.",
+                            )
+                            .size(12.0)
+                            .weak()
+                            .color(Color32::GRAY),
+                        );
+                        ui.add_space(12.0);
+
+                        // Coding Plan Toggle
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("💻Coding Plan Mode:").size(14.0));
+                            ui.add_space(10.0);
+                            ui.checkbox(&mut self.coding_plan, "");
+                        });
+                        ui.label(
+                            RichText::new(
+                                "When enabled, TTS will use coding plan mode for optimized speech generation.",
                             )
                             .size(12.0)
                             .weak()
@@ -224,7 +270,7 @@ impl SettingsPanel {
                         if ui
                             .add(
                                 egui::Button::new(
-                                    RichText::new("🗑️Clear Translation Cache").size(13.0),
+                                    RichText::new("Clear Translation Cache").size(13.0),
                                 )
                                 .corner_radius(6.0),
                             )
@@ -246,7 +292,7 @@ impl SettingsPanel {
 
                         if ui
                             .add(
-                                egui::Button::new(RichText::new("🗑️Clear Audio Cache").size(13.0))
+                                egui::Button::new(RichText::new("Clear Audio Cache").size(13.0))
                                     .corner_radius(6.0),
                             )
                             .clicked()
@@ -257,48 +303,29 @@ impl SettingsPanel {
                         ui.add_space(25.0);
                         ui.separator();
                         ui.add_space(15.0);
-
-                        // Action Buttons
-                        ui.vertical_centered(|ui| {
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .add(
-                                        egui::Button::new(
-                                            RichText::new("✓Apply Settings").size(14.0),
-                                        )
-                                        .corner_radius(8.0),
-                                    )
-                                    .clicked()
-                                {
-                                    settings_changed = Some(SettingsChange::All(
-                                        self.font_size,
-                                        self.dark_theme,
-                                        self.tts_voice.clone(),
-                                        self.tts_speed,
-                                        self.tts_volume,
-                                        self.enable_keyword_analysis,
-                                    ));
-                                }
-
-                                ui.add_space(15.0);
-
-                                if ui
-                                    .add(
-                                        egui::Button::new(RichText::new("❌Close").size(14.0))
-                                            .corner_radius(8.0),
-                                    )
-                                    .clicked()
-                                {
-                                    close_requested = true;
-                                }
-                            });
-                        });
                     });
                 });
             });
 
-        if close_requested {
-            self.show_panel = false;
+        // Detect changes and apply immediately
+        if self.font_size != old_font_size {
+            settings_changed = Some(SettingsChange::FontSize(self.font_size));
+        } else if self.theme_preference != old_theme_preference {
+            settings_changed = Some(SettingsChange::Theme(self.theme_preference));
+        } else if self.tts_voice != old_tts_voice {
+            settings_changed = Some(SettingsChange::TtsVoice(self.tts_voice.clone()));
+        } else if self.tts_speed != old_tts_speed {
+            settings_changed = Some(SettingsChange::TtsSpeed(self.tts_speed));
+        } else if self.tts_volume != old_tts_volume {
+            settings_changed = Some(SettingsChange::TtsVolume(self.tts_volume));
+        } else if self.enable_keyword_analysis != old_enable_keyword_analysis {
+            settings_changed = Some(SettingsChange::KeywordAnalysis(
+                self.enable_keyword_analysis,
+            ));
+        } else if self.think_enable != old_think_enable {
+            settings_changed = Some(SettingsChange::ThinkEnable(self.think_enable));
+        } else if self.coding_plan != old_coding_plan {
+            settings_changed = Some(SettingsChange::CodingPlan(self.coding_plan));
         }
 
         (self.show_panel, settings_changed)
@@ -311,7 +338,14 @@ impl SettingsPanel {
 
 #[derive(Debug, Clone)]
 pub enum SettingsChange {
-    All(f32, bool, String, f32, f32, bool),
+    FontSize(f32),
+    Theme(ThemePreference),
+    TtsVoice(String),
+    TtsSpeed(f32),
+    TtsVolume(f32),
+    KeywordAnalysis(bool),
+    ThinkEnable(bool),
+    CodingPlan(bool),
     ClearTranslationCache,
     ClearAudioCache,
 }
