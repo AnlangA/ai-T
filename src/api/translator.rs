@@ -139,17 +139,15 @@ After completing the translation, identify and explain technical terms, industry
 - Cultural references that are globally recognized
 
 ### Output Format
-[Translation]
 <Your translation here>
 
-[Terminology]
 - [Term]: [Concise explanation in the target language, 1-2 sentences]
 
+**Important:** Leave exactly one blank line between the [Translation] section and the [Terminology] section for proper spacing.
+
 ### Example Output
-[Translation]
 The API endpoint uses asynchronous processing to handle high-throughput requests.
 
-[Terminology]
 - API: Application Programming Interface, a software interface that allows applications to communicate with each other
 - Asynchronous: A programming pattern where operations can execute independently without blocking the main thread
 - Throughput: The rate at which a system processes requests or data
@@ -191,7 +189,7 @@ Translate the provided text to the target language with the highest possible acc
 - Review and refine for natural flow and clarity
 
 ## Output Format
-Provide ONLY the translation with no additional commentary, explanations, or formatting markers."
+Provide ONLY the translated text with NO additional commentary, explanations, or ANY formatting markers including brackets like [Translation]. Do NOT include any section headers, labels, or structural markers. Output ONLY the pure translated text."
         };
 
         messages.push(ChatMessage {

@@ -21,6 +21,23 @@ impl Default for Sidebar {
 }
 
 impl Sidebar {
+    /// Creates a styled frame for text input.
+    fn create_text_frame(&self, ui: &Ui) -> Frame {
+        Frame::NONE
+            .stroke(Stroke::new(
+                1.5,
+                ui.visuals()
+                    .widgets
+                    .noninteractive
+                    .bg_stroke
+                    .color
+                    .gamma_multiply(0.8),
+            ))
+            .fill(ui.visuals().extreme_bg_color)
+            .inner_margin(Margin::symmetric(16, 12))
+            .corner_radius(8.0)
+    }
+
     pub fn ui(&mut self, ctx: &Context, is_translating: bool) -> (bool, bool, Option<String>) {
         let mut translate_requested = false;
         let mut cancel_requested = false;
@@ -69,15 +86,7 @@ impl Sidebar {
                 ui.label("Source Text:");
                 ui.add_space(5.0);
 
-                ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                    let text_edit = TextEdit::multiline(&mut self.source_text)
-                        .hint_text("Enter text to translate...")
-                        .desired_width(f32::INFINITY);
-                    ui.add_sized([ui.available_width(), 150.0], text_edit);
-                });
-
-                ui.add_space(15.0);
-
+                // Translate/Cancel control (moved before input box)
                 ui.vertical_centered(|ui| {
                     if is_translating {
                         // Show cancel button during translation
@@ -97,8 +106,26 @@ impl Sidebar {
                     }
                 });
 
-                // Ensure translate and cancel buttons are properly sized
-                ui.add_space(5.0);
+                ui.add_space(10.0);
+
+                // Calculate responsive height for text input
+                let available_height = ui.available_height() - 20.0; // Reserve space for margins
+                let text_input_height = available_height.max(150.0);
+
+                self.create_text_frame(ui).show(ui, |ui| {
+                    ScrollArea::vertical()
+                        .max_height(text_input_height)
+                        .id_salt("source_text_scroll")
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            TextEdit::multiline(&mut self.source_text)
+                                .hint_text("Enter text to translate...")
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(10)
+                                .frame(false)
+                                .show(ui);
+                        });
+                });
             });
 
         (translate_requested, cancel_requested, api_key_to_save)
