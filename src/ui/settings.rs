@@ -10,6 +10,19 @@ pub enum ThemePreference {
     System,
 }
 
+/// Configuration parameters for creating a SettingsPanel.
+#[derive(Debug, Clone)]
+pub struct SettingsConfig {
+    pub font_size: f32,
+    pub dark_theme: bool,
+    pub tts_voice: String,
+    pub tts_speed: f32,
+    pub tts_volume: f32,
+    pub enable_keyword_analysis: bool,
+    pub think_enable: bool,
+    pub coding_plan: bool,
+}
+
 pub struct SettingsPanel {
     pub font_size: f32,
     pub theme_preference: ThemePreference,
@@ -45,29 +58,20 @@ impl Default for SettingsPanel {
 }
 
 impl SettingsPanel {
-    pub fn new(
-        font_size: f32,
-        dark_theme: bool,
-        tts_voice: String,
-        tts_speed: f32,
-        tts_volume: f32,
-        enable_keyword_analysis: bool,
-        think_enable: bool,
-        coding_plan: bool,
-    ) -> Self {
+    pub fn new(config: SettingsConfig) -> Self {
         SettingsPanel {
-            font_size,
-            theme_preference: if dark_theme {
+            font_size: config.font_size,
+            theme_preference: if config.dark_theme {
                 ThemePreference::Dark
             } else {
                 ThemePreference::Light
             },
-            tts_voice,
-            tts_speed,
-            tts_volume,
-            enable_keyword_analysis,
-            think_enable,
-            coding_plan,
+            tts_voice: config.tts_voice,
+            tts_speed: config.tts_speed,
+            tts_volume: config.tts_volume,
+            enable_keyword_analysis: config.enable_keyword_analysis,
+            think_enable: config.think_enable,
+            coding_plan: config.coding_plan,
             show_panel: false,
             clear_translation_cache: false,
             clear_audio_cache: false,

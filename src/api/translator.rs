@@ -18,23 +18,22 @@ fn parse_translation_and_keywords(
     }
 
     // Try to extract [Translation] and [Terminology] sections
-    if response.contains("[Translation]") && response.contains("[Terminology]") {
-        if let Some(translation_start) = response.find("[Translation]") {
-            if let Some(terminology_start) = response.find("[Terminology]") {
-                let translation = response
-                    [translation_start + "[Translation]".len()..terminology_start]
-                    .trim()
-                    .to_string();
-                let terminology = &response[terminology_start + "[Terminology]".len()..];
-                let terminology = terminology.trim().to_string();
+    if response.contains("[Translation]")
+        && response.contains("[Terminology]")
+        && let Some(translation_start) = response.find("[Translation]")
+        && let Some(terminology_start) = response.find("[Terminology]")
+    {
+        let translation = response[translation_start + "[Translation]".len()..terminology_start]
+            .trim()
+            .to_string();
+        let terminology = &response[terminology_start + "[Terminology]".len()..];
+        let terminology = terminology.trim().to_string();
 
-                return if terminology.is_empty() {
-                    (translation, None)
-                } else {
-                    (translation, Some(terminology))
-                };
-            }
-        }
+        return if terminology.is_empty() {
+            (translation, None)
+        } else {
+            (translation, Some(terminology))
+        };
     }
 
     // If keyword analysis was enabled but sections not found, treat entire response as translation

@@ -46,7 +46,11 @@ impl TranslationCache {
     }
 
     /// Generates a cache key from source text, target language, and keyword analysis setting
-    fn generate_key(source_text: &str, target_language: &str, enable_keyword_analysis: bool) -> String {
+    fn generate_key(
+        source_text: &str,
+        target_language: &str,
+        enable_keyword_analysis: bool,
+    ) -> String {
         format!(
             "{}::{}::{}",
             target_language, enable_keyword_analysis, source_text

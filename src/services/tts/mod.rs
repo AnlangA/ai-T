@@ -41,7 +41,13 @@ impl Default for TtsConfig {
 
 impl TtsConfig {
     /// Creates a new TtsConfig with custom parameters
-    pub fn new(voice: Voice, speed: f32, volume: f32, coding_plan: bool, enable_thinking: bool) -> Self {
+    pub fn new(
+        voice: Voice,
+        speed: f32,
+        volume: f32,
+        coding_plan: bool,
+        enable_thinking: bool,
+    ) -> Self {
         TtsConfig {
             voice,
             speed: speed.clamp(0.5, 2.0),
@@ -150,8 +156,8 @@ mod tests {
         let config = TtsConfig::default();
         assert_eq!(config.speed, 1.0);
         assert_eq!(config.volume, 1.0);
-        assert_eq!(config.coding_plan, true);
-        assert_eq!(config.enable_thinking, true);
+        assert!(config.coding_plan);
+        assert!(config.enable_thinking);
     }
 
     #[test]
@@ -159,7 +165,7 @@ mod tests {
         let config = TtsConfig::new(Voice::Tongtong, 3.0, 15.0, true, false);
         assert_eq!(config.speed, 2.0); // Clamped to max
         assert_eq!(config.volume, 10.0); // Clamped to max
-        assert_eq!(config.enable_thinking, false);
+        assert!(!config.enable_thinking);
     }
 
     #[test]

@@ -233,7 +233,10 @@ mod tests {
         assert_eq!(config.tts_voice, deserialized.tts_voice);
         assert_eq!(config.tts_speed, deserialized.tts_speed);
         assert_eq!(config.tts_volume, deserialized.tts_volume);
-        assert_eq!(config.enable_keyword_analysis, deserialized.enable_keyword_analysis);
+        assert_eq!(
+            config.enable_keyword_analysis,
+            deserialized.enable_keyword_analysis
+        );
         assert_eq!(config.think_enable, deserialized.think_enable);
         assert_eq!(config.coding_plan, deserialized.coding_plan);
     }
