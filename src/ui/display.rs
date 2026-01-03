@@ -187,7 +187,7 @@ impl DisplayPanel {
                 // Source Text section with audio controls
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new("📄 Source Text")
+                        RichText::new("📄Source Text")
                             .strong()
                             .size(font_size * 1.1),
                     );
@@ -196,7 +196,7 @@ impl DisplayPanel {
 
                         // TTS Convert button (always enabled)
                         if !self.source_tts_converting && !self.input_text.trim().is_empty() {
-                            let btn = egui::Button::new(RichText::new("🔊 Convert").size(12.0))
+                            let btn = egui::Button::new(RichText::new("🔊Convert").size(12.0))
                                 .corner_radius(6.0);
                             if ui.add(btn).on_hover_text("Convert text to audio").clicked() {
                                 start_source_tts = true;
@@ -207,7 +207,7 @@ impl DisplayPanel {
 
                         // Cancel TTS button (only shown during conversion)
                         if self.source_tts_converting {
-                            let btn = egui::Button::new(RichText::new("❌ Cancel").size(12.0))
+                            let btn = egui::Button::new(RichText::new("❌Cancel").size(12.0))
                                 .corner_radius(6.0);
                             if ui.add(btn).on_hover_text("Cancel TTS conversion").clicked() {
                                 cancel_source_tts = true;
@@ -258,7 +258,7 @@ impl DisplayPanel {
                 // Translation section with audio controls
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new("🌐 Translation")
+                        RichText::new("🌐Translation")
                             .strong()
                             .size(font_size * 1.1),
                     );
@@ -269,7 +269,7 @@ impl DisplayPanel {
                         let translation_tts_enabled =
                             !self.is_translating && !self.translation.is_empty();
                         if !self.translation_tts_converting && translation_tts_enabled {
-                            let btn = egui::Button::new(RichText::new("🔊 Convert").size(12.0))
+                            let btn = egui::Button::new(RichText::new("🔊Convert").size(12.0))
                                 .corner_radius(6.0);
                             if ui
                                 .add(btn)
@@ -284,7 +284,7 @@ impl DisplayPanel {
 
                         // Cancel TTS button (only shown during conversion)
                         if self.translation_tts_converting {
-                            let btn = egui::Button::new(RichText::new("❌ Cancel").size(12.0))
+                            let btn = egui::Button::new(RichText::new("❌Cancel").size(12.0))
                                 .corner_radius(6.0);
                             if ui.add(btn).on_hover_text("Cancel TTS conversion").clicked() {
                                 cancel_translation_tts = true;

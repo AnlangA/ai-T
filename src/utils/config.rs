@@ -29,6 +29,14 @@ pub struct AppConfig {
     /// TTS volume level
     #[serde(default = "default_volume")]
     pub tts_volume: f32,
+    /// Enable keyword analysis during translation
+    #[serde(default = "default_keyword_analysis")]
+    pub enable_keyword_analysis: bool,
+}
+
+/// Default keyword analysis setting
+fn default_keyword_analysis() -> bool {
+    false
 }
 
 /// Default voice name for TTS
@@ -56,6 +64,7 @@ impl Default for AppConfig {
             tts_voice: default_voice(),
             tts_speed: default_speed(),
             tts_volume: default_volume(),
+            enable_keyword_analysis: default_keyword_analysis(),
         }
     }
 }
@@ -169,6 +178,7 @@ mod tests {
         assert_eq!(config.target_language, "English");
         assert_eq!(config.font_size, 16.0);
         assert!(config.dark_theme);
+        assert!(!config.enable_keyword_analysis);
     }
 
     #[test]
@@ -190,6 +200,7 @@ mod tests {
             tts_voice: "Tongtong".to_string(),
             tts_speed: 1.0,
             tts_volume: 1.0,
+            enable_keyword_analysis: true,
         };
 
         let json = serde_json::to_string(&config).unwrap();
@@ -202,5 +213,6 @@ mod tests {
         assert_eq!(config.tts_voice, deserialized.tts_voice);
         assert_eq!(config.tts_speed, deserialized.tts_speed);
         assert_eq!(config.tts_volume, deserialized.tts_volume);
+        assert_eq!(config.enable_keyword_analysis, deserialized.enable_keyword_analysis);
     }
 }

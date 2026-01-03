@@ -63,6 +63,7 @@ impl TranslateApp {
             config.tts_voice.clone(),
             config.tts_speed,
             config.tts_volume,
+            config.enable_keyword_analysis,
         );
 
         let logger = Logger::new("translations.log").ok().map(Arc::new);
@@ -156,8 +157,9 @@ impl TranslateApp {
         let handle = self.runtime_handle.clone();
         let cancel_flag = self.cancel_requested.clone();
 
+        let enable_keyword_analysis = self.config.enable_keyword_analysis;
         handle.spawn(async move {
-            let mut stream_rx = translator.translate(source_text, target_language);
+            let mut stream_rx = translator.translate(source_text, target_language, enable_keyword_analysis);
 
             while let Some(result) = stream_rx.recv().await {
                 // Check if cancellation was requested
@@ -601,7 +603,7 @@ impl eframe::App for TranslateApp {
 
         if let Some(change) = settings_changes {
             match change {
-                SettingsChange::All(new_font_size, new_dark_theme, voice, speed, volume) => {
+                SettingsChange::All(new_font_size, new_dark_theme, voice, speed, volume, keyword_analysis) => {
                     // Update theme settings
                     self.config.font_size = new_font_size;
                     self.config.dark_theme = new_dark_theme;
@@ -615,17 +617,21 @@ impl eframe::App for TranslateApp {
                     self.config.tts_speed = speed;
                     self.config.tts_volume = volume;
 
+                    // Update keyword analysis setting
+                    self.config.enable_keyword_analysis = keyword_analysis;
+
                     // Update TTS service config
                     let tts_config = TtsConfig::new(AppConfig::parse_voice(&voice), speed, volume);
                     self.tts_service.update_config(tts_config);
 
                     tracing::info!(
-                        "All settings updated: font_size={}, theme={}, voice={}, speed={}, volume={}",
+                        "All settings updated: font_size={}, theme={}, voice={}, speed={}, volume={}, keyword_analysis={}",
                         new_font_size,
                         if new_dark_theme { "Dark" } else { "Light" },
                         voice,
                         speed,
-                        volume
+                        volume,
+                        keyword_analysis
                     );
                 }
                 SettingsChange::ClearTranslationCache => {

@@ -9,6 +9,7 @@ pub struct SettingsPanel {
     pub tts_voice: String,
     pub tts_speed: f32,
     pub tts_volume: f32,
+    pub enable_keyword_analysis: bool,
     show_panel: bool,
     #[allow(dead_code)]
     clear_translation_cache: bool,
@@ -24,6 +25,7 @@ impl Default for SettingsPanel {
             tts_voice: "Tongtong".to_string(),
             tts_speed: 1.0,
             tts_volume: 1.0,
+            enable_keyword_analysis: false,
             show_panel: false,
             clear_translation_cache: false,
             clear_audio_cache: false,
@@ -38,6 +40,7 @@ impl SettingsPanel {
         tts_voice: String,
         tts_speed: f32,
         tts_volume: f32,
+        enable_keyword_analysis: bool,
     ) -> Self {
         SettingsPanel {
             font_size,
@@ -45,6 +48,7 @@ impl SettingsPanel {
             tts_voice,
             tts_speed,
             tts_volume,
+            enable_keyword_analysis,
             show_panel: false,
             clear_translation_cache: false,
             clear_audio_cache: false,
@@ -71,7 +75,7 @@ impl SettingsPanel {
                     ui.vertical(|ui| {
                         // Appearance Section
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🎨 Appearance Settings").strong().size(18.0));
+                            ui.label(RichText::new("🎨Appearance Settings").strong().size(18.0));
                         });
                         ui.add_space(12.0);
                         ui.separator();
@@ -79,7 +83,7 @@ impl SettingsPanel {
 
                         // Font Size
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("📏 Font Size:").size(14.0));
+                            ui.label(RichText::new("📏Font Size:").size(14.0));
                             ui.add_space(10.0);
                             ui.add(
                                 Slider::new(&mut self.font_size, 12.0..=24.0)
@@ -92,7 +96,7 @@ impl SettingsPanel {
 
                         // Theme
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🌗 Theme:").size(14.0));
+                            ui.label(RichText::new("🌗Theme:").size(14.0));
                             ui.add_space(10.0);
 
                             let dark_btn = egui::Button::new(RichText::new("🌑 Dark").size(13.0))
@@ -114,15 +118,45 @@ impl SettingsPanel {
                         ui.separator();
                         ui.add_space(12.0);
 
+                        // Translation Features Section
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("📝Translation Features").strong().size(18.0));
+                        });
+                        ui.add_space(12.0);
+
+                        // Keyword Analysis Toggle
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🔍Keyword Analysis:").size(14.0));
+                            ui.add_space(10.0);
+                            if ui
+                                .checkbox(&mut self.enable_keyword_analysis, "")
+                                .changed()
+                            {
+                                // Checkbox state changed
+                            }
+                        });
+                        ui.label(
+                            RichText::new(
+                                "When enabled, analyze professional terms and provide explanations during translation. Each term on a separate line.",
+                            )
+                            .size(12.0)
+                            .weak()
+                            .color(Color32::GRAY),
+                        );
+
+                        ui.add_space(20.0);
+                        ui.separator();
+                        ui.add_space(12.0);
+
                         // TTS Section
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🔊 TTS Settings").strong().size(18.0));
+                            ui.label(RichText::new("🔊TTS Settings").strong().size(18.0));
                         });
                         ui.add_space(12.0);
 
                         // Voice Selection
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🎤 Voice:").size(14.0));
+                            ui.label(RichText::new("🎤Voice:").size(14.0));
                             ui.add_space(10.0);
 
                             let voices = AppConfig::get_supported_voices();
@@ -143,7 +177,7 @@ impl SettingsPanel {
 
                         // Speed Slider
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("⚡ Speed:").size(14.0));
+                            ui.label(RichText::new("⚡Speed:").size(14.0));
                             ui.add_space(10.0);
                             ui.add(
                                 Slider::new(&mut self.tts_speed, 0.5..=2.0)
@@ -156,7 +190,7 @@ impl SettingsPanel {
 
                         // Volume Slider
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🔈 Volume:").size(14.0));
+                            ui.label(RichText::new("🔈Volume:").size(14.0));
                             ui.add_space(10.0);
                             ui.add(
                                 Slider::new(&mut self.tts_volume, 0.0..=10.0)
@@ -171,7 +205,7 @@ impl SettingsPanel {
 
                         // Cache Management Section
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("💾 Cache Management").strong().size(18.0));
+                            ui.label(RichText::new("💾Cache Management").strong().size(18.0));
                         });
                         ui.add_space(12.0);
 
@@ -230,7 +264,7 @@ impl SettingsPanel {
                                 if ui
                                     .add(
                                         egui::Button::new(
-                                            RichText::new("✓ Apply Settings").size(14.0),
+                                            RichText::new("✓Apply Settings").size(14.0),
                                         )
                                         .corner_radius(8.0),
                                     )
@@ -242,6 +276,7 @@ impl SettingsPanel {
                                         self.tts_voice.clone(),
                                         self.tts_speed,
                                         self.tts_volume,
+                                        self.enable_keyword_analysis,
                                     ));
                                 }
 
@@ -249,7 +284,7 @@ impl SettingsPanel {
 
                                 if ui
                                     .add(
-                                        egui::Button::new(RichText::new("✕ Close").size(14.0))
+                                        egui::Button::new(RichText::new("❌Close").size(14.0))
                                             .corner_radius(8.0),
                                     )
                                     .clicked()
@@ -276,7 +311,7 @@ impl SettingsPanel {
 
 #[derive(Debug, Clone)]
 pub enum SettingsChange {
-    All(f32, bool, String, f32, f32),
+    All(f32, bool, String, f32, f32, bool),
     ClearTranslationCache,
     ClearAudioCache,
 }
