@@ -6,6 +6,13 @@
 use std::sync::{Arc, Mutex};
 use text2audio::{Model, Text2Audio, Voice};
 
+/// Helper macro to lock mutex with consistent error handling
+macro_rules! lock_mutex {
+    ($mutex:expr) => {
+        $mutex.lock().expect("Mutex poisoned")
+    };
+}
+
 /// TTS configuration parameters
 #[derive(Debug, Clone)]
 pub struct TtsConfig {
@@ -41,7 +48,13 @@ impl Default for TtsConfig {
 
 impl TtsConfig {
     /// Creates a new TtsConfig with custom parameters
-    pub fn new(voice: Voice, speed: f32, volume: f32, coding_plan: bool, enable_thinking: bool) -> Self {
+    pub fn new(
+        voice: Voice,
+        speed: f32,
+        volume: f32,
+        coding_plan: bool,
+        enable_thinking: bool,
+    ) -> Self {
         TtsConfig {
             voice,
             speed: speed.clamp(0.5, 2.0),
@@ -72,17 +85,12 @@ pub enum TtsStatus {
 pub struct TtsService {
     api_key: String,
     config: Arc<Mutex<TtsConfig>>,
-    #[allow(dead_code)]
     runtime_handle: tokio::runtime::Handle,
 }
 
 impl TtsService {
-    /// Creates a new TTS service
-    pub fn new(api_key: String) -> Self {
-        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        let runtime_handle = rt.handle().clone();
-        std::mem::forget(rt);
-
+    /// Creates a new TTS service with the given runtime handle
+    pub fn new(api_key: String, runtime_handle: tokio::runtime::Handle) -> Self {
         TtsService {
             api_key,
             config: Arc::new(Mutex::new(TtsConfig::default())),
@@ -92,12 +100,12 @@ impl TtsService {
 
     /// Updates the TTS configuration
     pub fn update_config(&self, config: TtsConfig) {
-        *self.config.lock().expect("Config mutex poisoned") = config;
+        *lock_mutex!(self.config) = config;
     }
 
     /// Gets current TTS configuration
     pub fn get_config(&self) -> TtsConfig {
-        self.config.lock().expect("Config mutex poisoned").clone()
+        lock_mutex!(self.config).clone()
     }
 
     pub fn convert_async<F>(&self, text: &str, output_path: &str, callback: F)
@@ -113,6 +121,7 @@ impl TtsService {
         let api_key = self.api_key.clone();
         let text_owned = text.to_string();
         let output_path_owned = output_path.to_string();
+        let runtime_handle = self.runtime_handle.clone();
 
         // Create the converter
         let converter = Text2Audio::new(&api_key)
@@ -125,12 +134,9 @@ impl TtsService {
             .with_max_segment_length(config.max_segment_length)
             .with_parallel(config.parallel);
 
-        // Spawn in a new thread to avoid blocking the current runtime
-        std::thread::spawn(move || {
-            // Create a new runtime for this thread
-            let rt =
-                tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime in thread");
-
+        // Use spawn_blocking to run blocking operation without creating new runtime
+        runtime_handle.spawn_blocking(move || {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
             let status = match rt.block_on(converter.convert(&text_owned, &output_path_owned)) {
                 Ok(()) => TtsStatus::Completed(output_path_owned),
                 Err(e) => TtsStatus::Failed(format!("Conversion error: {}", e)),
@@ -150,8 +156,8 @@ mod tests {
         let config = TtsConfig::default();
         assert_eq!(config.speed, 1.0);
         assert_eq!(config.volume, 1.0);
-        assert_eq!(config.coding_plan, true);
-        assert_eq!(config.enable_thinking, true);
+        assert!(config.coding_plan);
+        assert!(config.enable_thinking);
     }
 
     #[test]
@@ -159,7 +165,7 @@ mod tests {
         let config = TtsConfig::new(Voice::Tongtong, 3.0, 15.0, true, false);
         assert_eq!(config.speed, 2.0); // Clamped to max
         assert_eq!(config.volume, 10.0); // Clamped to max
-        assert_eq!(config.enable_thinking, false);
+        assert!(!config.enable_thinking);
     }
 
     #[test]

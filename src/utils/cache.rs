@@ -9,6 +9,13 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+/// Helper macro to lock mutex with consistent error handling
+macro_rules! lock_mutex {
+    ($mutex:expr) => {
+        $mutex.lock().expect("Mutex poisoned")
+    };
+}
+
 /// A cache entry containing translated text and optional keyword analysis the translated text
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CacheEntry {
@@ -46,7 +53,11 @@ impl TranslationCache {
     }
 
     /// Generates a cache key from source text, target language, and keyword analysis setting
-    fn generate_key(source_text: &str, target_language: &str, enable_keyword_analysis: bool) -> String {
+    fn generate_key(
+        source_text: &str,
+        target_language: &str,
+        enable_keyword_analysis: bool,
+    ) -> String {
         format!(
             "{}::{}::{}",
             target_language, enable_keyword_analysis, source_text
@@ -71,7 +82,7 @@ impl TranslationCache {
         enable_keyword_analysis: bool,
     ) -> Option<(String, Option<String>)> {
         let key = Self::generate_key(source_text, target_language, enable_keyword_analysis);
-        let cache = self.cache.lock().expect("Cache mutex poisoned");
+        let cache = lock_mutex!(self.cache);
 
         if let Some(entry) = cache.get(&key) {
             tracing::info!(
@@ -116,7 +127,7 @@ impl TranslationCache {
         };
 
         {
-            let mut cache = self.cache.lock().expect("Cache mutex poisoned");
+            let mut cache = lock_mutex!(self.cache);
             cache.insert(key.clone(), entry);
             tracing::info!(
                 "Cached translation for key: {}",
@@ -190,7 +201,7 @@ impl TranslationCache {
 
     /// Returns the number of entries in the cache
     pub fn len(&self) -> usize {
-        self.cache.lock().expect("Cache mutex poisoned").len()
+        lock_mutex!(self.cache).len()
     }
 }
 

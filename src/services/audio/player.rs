@@ -8,6 +8,13 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+/// Helper macro to lock mutex with consistent error handling
+macro_rules! lock_mutex {
+    ($mutex:expr) => {
+        $mutex.lock().expect("Mutex poisoned")
+    };
+}
+
 /// Playback state for audio player
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum PlaybackState {
@@ -40,7 +47,7 @@ impl AudioPlayer {
 
     /// Gets the current playback state
     pub fn get_state(&self) -> PlaybackState {
-        self.state.lock().expect("State mutex poisoned").clone()
+        lock_mutex!(self.state).clone()
     }
 
     /// Checks if audio is currently playing
@@ -51,12 +58,12 @@ impl AudioPlayer {
     /// Updates playback state if playback has finished
     pub fn update_state_if_finished(&self) {
         if self.is_playing() {
-            let mut process = self.current_process.lock().expect("Process mutex poisoned");
+            let mut process = lock_mutex!(self.current_process);
             if let Some(mut child) = process.take() {
                 // Try to check if process has finished
                 if let Ok(Some(_)) = child.try_wait() {
                     tracing::info!("Audio playback finished");
-                    *self.state.lock().expect("State mutex poisoned") = PlaybackState::Idle;
+                    *lock_mutex!(self.state) = PlaybackState::Idle;
                 } else {
                     // Process still running, put it back
                     *process = Some(child);
@@ -69,7 +76,7 @@ impl AudioPlayer {
     pub fn stop(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Kill current process if running
         {
-            let mut process = self.current_process.lock().expect("Process mutex poisoned");
+            let mut process = lock_mutex!(self.current_process);
             if let Some(mut child) = process.take() {
                 #[cfg(unix)]
                 {
@@ -121,7 +128,7 @@ impl AudioPlayer {
 
         // Store process and update state
         {
-            let mut process = self.current_process.lock().expect("Process mutex poisoned");
+            let mut process = lock_mutex!(self.current_process);
             *process = Some(child);
         }
 

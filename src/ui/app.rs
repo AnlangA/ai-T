@@ -3,7 +3,7 @@ use crate::channel::channel::UiMessage;
 use crate::services::audio::{AudioCache, AudioPlayer};
 use crate::services::tts::{TtsConfig, TtsService};
 use crate::ui::display::DisplayPanel;
-use crate::ui::settings::{SettingsChange, SettingsPanel, ThemePreference};
+use crate::ui::settings::{SettingsChange, SettingsConfig, SettingsPanel, ThemePreference};
 use crate::ui::sidebar::Sidebar;
 use crate::ui::theme::Theme;
 use crate::utils::cache::TranslationCache;
@@ -12,6 +12,12 @@ use crate::utils::logger::Logger;
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+
+/// Enum representing the type of TTS (source or translation)
+enum TtsType {
+    Source,
+    Translation,
+}
 
 pub struct TranslateApp {
     config: AppConfig,
@@ -26,6 +32,7 @@ pub struct TranslateApp {
     cancel_requested: Arc<Mutex<bool>>,
     ui_tx: UnboundedSender<UiMessage>,
     ui_rx: Arc<Mutex<Option<UnboundedReceiver<UiMessage>>>>,
+    _runtime: tokio::runtime::Runtime, // Prefixed with _ to silence unused warning
     runtime_handle: tokio::runtime::Handle,
 
     // TTS components
@@ -35,6 +42,13 @@ pub struct TranslateApp {
     // Independent TTS cancellation flags
     source_tts_cancel_requested: Arc<Mutex<bool>>,
     translation_tts_cancel_requested: Arc<Mutex<bool>>,
+}
+
+/// Helper macro to lock mutex with consistent error handling
+macro_rules! lock_mutex {
+    ($mutex:expr) => {
+        $mutex.lock().expect("Mutex poisoned")
+    };
 }
 
 impl TranslateApp {
@@ -57,24 +71,29 @@ impl TranslateApp {
         sidebar.set_api_key(config.api_key.clone());
         sidebar.set_target_language(config.target_language.clone());
 
-        let settings = SettingsPanel::new(
-            config.font_size,
-            config.dark_theme,
-            config.tts_voice.clone(),
-            config.tts_speed,
-            config.tts_volume,
-            config.enable_keyword_analysis,
-            config.think_enable,
-            config.coding_plan,
-        );
+        let settings = SettingsPanel::new(SettingsConfig {
+            font_size: config.font_size,
+            dark_theme: config.dark_theme,
+            tts_voice: config.tts_voice.clone(),
+            tts_speed: config.tts_speed,
+            tts_volume: config.tts_volume,
+            enable_keyword_analysis: config.enable_keyword_analysis,
+            think_enable: config.think_enable,
+            coding_plan: config.coding_plan,
+        });
 
         let logger = Logger::new("translations.log").ok().map(Arc::new);
         let cache = Arc::new(TranslationCache::default());
         let audio_cache = Arc::new(AudioCache::default());
         let audio_player = Arc::new(AudioPlayer::new());
 
-        // Initialize TTS service with API key
-        let tts_service = Arc::new(TtsService::new(config.api_key.clone()));
+        let (ui_tx, ui_rx) = mpsc::unbounded_channel();
+
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+        let runtime_handle = rt.handle().clone();
+
+        // Initialize TTS service with API key and runtime handle
+        let tts_service = Arc::new(TtsService::new(config.api_key.clone(), runtime_handle.clone()));
 
         // Configure TTS service
         let tts_config = TtsConfig::new(
@@ -86,13 +105,8 @@ impl TranslateApp {
         );
         tts_service.update_config(tts_config);
 
-        let (ui_tx, ui_rx) = mpsc::unbounded_channel();
-
-        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        let runtime_handle = rt.handle().clone();
-        std::mem::forget(rt);
-
         TranslateApp {
+            _runtime: rt,
             config,
             sidebar,
             display: DisplayPanel::default(),
@@ -135,10 +149,7 @@ impl TranslateApp {
         tracing::info!("All audio activities stopped for new translation");
 
         // Reset cancel flag
-        *self
-            .cancel_requested
-            .lock()
-            .expect("Cancel flag mutex poisoned") = false;
+        *lock_mutex!(self.cancel_requested) = false;
 
         let translator = Arc::new(Translator::new(api_key, self.cache.clone()));
         self.translator = Some(translator.clone());
@@ -163,7 +174,8 @@ impl TranslateApp {
 
         let enable_keyword_analysis = self.config.enable_keyword_analysis;
         handle.spawn(async move {
-            let mut stream_rx = translator.translate(source_text, target_language, enable_keyword_analysis);
+            let mut stream_rx =
+                translator.translate(source_text, target_language, enable_keyword_analysis);
 
             loop {
                 tokio::select! {
@@ -214,50 +226,73 @@ impl TranslateApp {
 
     /// Starts TTS conversion for source text
     pub fn start_source_tts(&mut self, text: String) {
+        self.start_tts(text, TtsType::Source);
+    }
+
+    /// Starts TTS conversion
+    fn start_tts(&mut self, text: String, tts_type: TtsType) {
         if text.trim().is_empty() {
             tracing::warn!("Cannot start TTS for empty text");
             return;
         }
 
+        let (cancel_flag, tts_type_name) = match tts_type {
+            TtsType::Source => (&self.source_tts_cancel_requested, "Source"),
+            TtsType::Translation => (&self.translation_tts_cancel_requested, "Translation"),
+        };
+
         // Check if audio is already cached
         if let Some(audio_path) = self.audio_cache.get(&text) {
-            tracing::info!("Source audio already cached: {:?}", audio_path);
-            self.display
-                .set_source_audio_path(Some(audio_path.display().to_string()));
+            tracing::info!("{} audio already cached: {:?}", tts_type_name, audio_path);
+            match tts_type {
+                TtsType::Source => {
+                    self.display
+                        .set_source_audio_path(Some(audio_path.display().to_string()));
+                }
+                TtsType::Translation => {
+                    self.display
+                        .set_translation_audio_path(Some(audio_path.display().to_string()));
+                }
+            }
             return;
         }
 
         tracing::info!(
-            "Starting TTS conversion for source text (length: {})",
+            "Starting TTS conversion for {} (length: {})",
+            tts_type_name,
             text.len()
         );
 
         // Reset cancel flag and get new audio file path
-        *self
-            .source_tts_cancel_requested
-            .lock()
-            .expect("Cancel flag mutex poisoned") = false;
+        *lock_mutex!(cancel_flag) = false;
         let audio_path = self.audio_cache.get_new_audio_path(&text);
 
-        // Update UI state
-        self.display.set_source_tts_converting(true);
-
-        // Send message to UI
-        let _ = self.ui_tx.send(UiMessage::SourceTtsStarted);
+        // Update UI state and send start message
+        match tts_type {
+            TtsType::Source => {
+                self.display.set_source_tts_converting(true);
+                let _ = self.ui_tx.send(UiMessage::SourceTtsStarted);
+            }
+            TtsType::Translation => {
+                self.display.set_translation_tts_converting(true);
+                let _ = self.ui_tx.send(UiMessage::TranslationTtsStarted);
+            }
+        }
 
         // Start async conversion
         let tts_service = self.tts_service.clone();
         let audio_cache = self.audio_cache.clone();
         let text_clone = text.clone();
         let ui_tx = self.ui_tx.clone();
-        let cancel_flag = self.source_tts_cancel_requested.clone();
+        let cancel_flag = cancel_flag.clone();
+        let tts_type_clone = tts_type;
 
         let handle = self.runtime_handle.clone();
 
         handle.spawn(async move {
             // Check if cancellation was requested before starting
-            if *cancel_flag.lock().expect("Cancel flag mutex poisoned") {
-                tracing::info!("Source TTS cancelled before start");
+            if *lock_mutex!(cancel_flag) {
+                tracing::info!("{} TTS cancelled before start", tts_type_name);
                 return;
             }
 
@@ -270,11 +305,8 @@ impl TranslateApp {
             let cancel_flag_clone = cancel_flag.clone();
             tts_service.convert_async(&text_clone, &audio_path_str, move |status| {
                 // Check if cancellation was requested
-                if *cancel_flag_clone
-                    .lock()
-                    .expect("Cancel flag mutex poisoned")
-                {
-                    tracing::info!("Source TTS cancelled");
+                if *lock_mutex!(cancel_flag_clone) {
+                    tracing::info!("{} TTS cancelled", tts_type_name);
                     return;
                 }
 
@@ -282,11 +314,15 @@ impl TranslateApp {
                     crate::services::tts::TtsStatus::Completed(path) => {
                         // Store in cache
                         audio_cache.set(&text_for_cache, audio_path_for_cache);
-                        tracing::info!("Source TTS completed: {}", path);
-                        let _ = ui_tx_clone.send(UiMessage::SourceTtsCompleted(path));
+                        tracing::info!("{} TTS completed: {}", tts_type_name, path);
+                        let msg = match tts_type_clone {
+                            TtsType::Source => UiMessage::SourceTtsCompleted(path),
+                            TtsType::Translation => UiMessage::TranslationTtsCompleted(path),
+                        };
+                        let _ = ui_tx_clone.send(msg);
                     }
                     crate::services::tts::TtsStatus::Failed(err) => {
-                        tracing::error!("Source TTS failed: {}", err);
+                        tracing::error!("{} TTS failed: {}", tts_type_name, err);
                         let _ = ui_tx_clone.send(UiMessage::TtsFailed(err));
                     }
                     _ => {}
@@ -297,85 +333,7 @@ impl TranslateApp {
 
     /// Starts TTS conversion for translation text
     pub fn start_translation_tts(&mut self, text: String) {
-        if text.trim().is_empty() {
-            tracing::warn!("Cannot start TTS for empty translation");
-            return;
-        }
-
-        // Check if audio is already cached
-        if let Some(audio_path) = self.audio_cache.get(&text) {
-            tracing::info!("Translation audio already cached: {:?}", audio_path);
-            self.display
-                .set_translation_audio_path(Some(audio_path.display().to_string()));
-            return;
-        }
-
-        tracing::info!(
-            "Starting TTS conversion for translation (length: {})",
-            text.len()
-        );
-
-        // Reset cancel flag and get new audio file path
-        *self
-            .translation_tts_cancel_requested
-            .lock()
-            .expect("Cancel flag mutex poisoned") = false;
-        let audio_path = self.audio_cache.get_new_audio_path(&text);
-
-        // Update UI state
-        self.display.set_translation_tts_converting(true);
-
-        // Send message to UI
-        let _ = self.ui_tx.send(UiMessage::TranslationTtsStarted);
-
-        // Start async conversion
-        let tts_service = self.tts_service.clone();
-        let audio_cache = self.audio_cache.clone();
-        let text_clone = text.clone();
-        let ui_tx = self.ui_tx.clone();
-        let cancel_flag = self.translation_tts_cancel_requested.clone();
-
-        let handle = self.runtime_handle.clone();
-
-        handle.spawn(async move {
-            // Check if cancellation was requested before starting
-            if *cancel_flag.lock().expect("Cancel flag mutex poisoned") {
-                tracing::info!("Translation TTS cancelled before start");
-                return;
-            }
-
-            let audio_path_str = audio_path.to_string_lossy().to_string();
-
-            // Perform conversion
-            let text_for_cache = text_clone.clone();
-            let audio_path_for_cache = audio_path.clone();
-            let ui_tx_clone = ui_tx.clone();
-            let cancel_flag_clone = cancel_flag.clone();
-            tts_service.convert_async(&text_clone, &audio_path_str, move |status| {
-                // Check if cancellation was requested
-                if *cancel_flag_clone
-                    .lock()
-                    .expect("Cancel flag mutex poisoned")
-                {
-                    tracing::info!("Translation TTS cancelled");
-                    return;
-                }
-
-                match status {
-                    crate::services::tts::TtsStatus::Completed(path) => {
-                        // Store in cache
-                        audio_cache.set(&text_for_cache, audio_path_for_cache);
-                        tracing::info!("Translation TTS completed: {}", path);
-                        let _ = ui_tx_clone.send(UiMessage::TranslationTtsCompleted(path));
-                    }
-                    crate::services::tts::TtsStatus::Failed(err) => {
-                        tracing::error!("Translation TTS failed: {}", err);
-                        let _ = ui_tx_clone.send(UiMessage::TtsFailed(err));
-                    }
-                    _ => {}
-                }
-            });
-        });
+        self.start_tts(text, TtsType::Translation);
     }
 
     /// Plays audio file
@@ -433,30 +391,44 @@ impl TranslateApp {
         }
     }
 
+    /// Cancels TTS conversion
+    fn cancel_tts(&mut self, tts_type: TtsType) {
+        let (is_converting, cancel_flag, tts_type_name) = match tts_type {
+            TtsType::Source => (
+                self.display.is_source_converting(),
+                &self.source_tts_cancel_requested,
+                "Source",
+            ),
+            TtsType::Translation => (
+                self.display.is_translation_converting(),
+                &self.translation_tts_cancel_requested,
+                "Translation",
+            ),
+        };
+
+        if is_converting {
+            tracing::info!("Cancelling {} TTS", tts_type_name);
+            *lock_mutex!(cancel_flag) = true;
+            // Clear converting state immediately
+            match tts_type {
+                TtsType::Source => {
+                    self.display.set_source_tts_converting(false);
+                }
+                TtsType::Translation => {
+                    self.display.set_translation_tts_converting(false);
+                }
+            }
+        }
+    }
+
     /// Cancels source TTS conversion
     pub fn cancel_source_tts(&mut self) {
-        if self.display.is_source_converting() {
-            tracing::info!("Cancelling source TTS");
-            *self
-                .source_tts_cancel_requested
-                .lock()
-                .expect("Cancel flag mutex poisoned") = true;
-            // Clear converting state immediately
-            self.display.set_source_tts_converting(false);
-        }
+        self.cancel_tts(TtsType::Source);
     }
 
     /// Cancels translation TTS conversion
     pub fn cancel_translation_tts(&mut self) {
-        if self.display.is_translation_converting() {
-            tracing::info!("Cancelling translation TTS");
-            *self
-                .translation_tts_cancel_requested
-                .lock()
-                .expect("Cancel flag mutex poisoned") = true;
-            // Clear converting state immediately
-            self.display.set_translation_tts_converting(false);
-        }
+        self.cancel_tts(TtsType::Translation);
     }
 
     /// Clears audio cache
@@ -626,7 +598,10 @@ impl eframe::App for TranslateApp {
                     tracing::info!("Font size changed to: {}", new_font_size);
                 }
                 SettingsChange::Theme(theme_preference) => {
-                    let dark_theme = matches!(theme_preference, ThemePreference::Dark | ThemePreference::System);
+                    let dark_theme = matches!(
+                        theme_preference,
+                        ThemePreference::Dark | ThemePreference::System
+                    );
                     self.config.dark_theme = dark_theme;
                     self.theme.dark = dark_theme;
                     self.theme.set_visuals(ctx);
@@ -670,7 +645,10 @@ impl eframe::App for TranslateApp {
                 }
                 SettingsChange::KeywordAnalysis(enabled) => {
                     self.config.enable_keyword_analysis = enabled;
-                    tracing::info!("Keyword analysis {}", if enabled { "enabled" } else { "disabled" });
+                    tracing::info!(
+                        "Keyword analysis {}",
+                        if enabled { "enabled" } else { "disabled" }
+                    );
                 }
                 SettingsChange::ThinkEnable(enabled) => {
                     self.config.think_enable = enabled;
@@ -682,7 +660,10 @@ impl eframe::App for TranslateApp {
                         self.config.think_enable,
                     );
                     self.tts_service.update_config(tts_config);
-                    tracing::info!("Thinking mode {}", if enabled { "enabled" } else { "disabled" });
+                    tracing::info!(
+                        "Thinking mode {}",
+                        if enabled { "enabled" } else { "disabled" }
+                    );
                 }
                 SettingsChange::CodingPlan(enabled) => {
                     self.config.coding_plan = enabled;
@@ -694,7 +675,10 @@ impl eframe::App for TranslateApp {
                         self.config.think_enable,
                     );
                     self.tts_service.update_config(tts_config);
-                    tracing::info!("Coding plan mode {}", if enabled { "enabled" } else { "disabled" });
+                    tracing::info!(
+                        "Coding plan mode {}",
+                        if enabled { "enabled" } else { "disabled" }
+                    );
                 }
                 SettingsChange::ClearTranslationCache => {
                     self.clear_translation_cache();

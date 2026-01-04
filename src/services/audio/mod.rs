@@ -14,6 +14,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+/// Helper macro to lock mutex with consistent error handling
+macro_rules! lock_mutex {
+    ($mutex:expr) => {
+        $mutex.lock().expect("Mutex poisoned")
+    };
+}
+
 /// Cache index entry for persistence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CacheIndexEntry {
@@ -88,7 +95,7 @@ impl AudioCache {
     /// Some(audio_path) if found in cache, None otherwise
     pub fn get(&self, text: &str) -> Option<PathBuf> {
         let key = Self::generate_key(text);
-        let cache = self.cache.lock().expect("Cache mutex poisoned");
+        let cache = lock_mutex!(self.cache);
 
         if let Some(entry) = cache.get(&key) {
             // Check if the audio file still exists
@@ -122,7 +129,7 @@ impl AudioCache {
         };
 
         {
-            let mut cache = self.cache.lock().expect("Cache mutex poisoned");
+            let mut cache = lock_mutex!(self.cache);
 
             // Remove old entry if exists
             if let Some(old_entry) = cache.get(&key) {
@@ -148,7 +155,7 @@ impl AudioCache {
 
     /// Clears all entries from the cache
     pub fn clear(&self) {
-        let cache = self.cache.lock().expect("Cache mutex poisoned");
+        let cache = lock_mutex!(self.cache);
 
         tracing::info!("Clearing audio cache ({} entries)", cache.len());
 
@@ -161,7 +168,7 @@ impl AudioCache {
         }
 
         drop(cache);
-        self.cache.lock().expect("Cache mutex poisoned").clear();
+        lock_mutex!(self.cache).clear();
 
         // Delete index file
         if let Err(e) = fs::remove_file(&self.index_file) {
@@ -171,7 +178,7 @@ impl AudioCache {
 
     /// Gets the number of entries in the cache
     pub fn len(&self) -> usize {
-        self.cache.lock().expect("Cache mutex poisoned").len()
+        lock_mutex!(self.cache).len()
     }
 
     /// Loads cache from index file
@@ -227,7 +234,7 @@ impl AudioCache {
 
     /// Saves cache index to file
     fn save_cache_index(&self) {
-        let cache = self.cache.lock().expect("Cache mutex poisoned");
+        let cache = lock_mutex!(self.cache);
 
         // Convert cache entries to index entries
         let index_entries: Vec<CacheIndexEntry> = cache
