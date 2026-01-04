@@ -1,5 +1,6 @@
 use crate::api::translator::Translator;
 use crate::channel::channel::UiMessage;
+use crate::lock_mutex;
 use crate::services::audio::{AudioCache, AudioPlayer};
 use crate::services::tts::{TtsConfig, TtsService};
 use crate::ui::display::DisplayPanel;
@@ -42,13 +43,6 @@ pub struct TranslateApp {
     // Independent TTS cancellation flags
     source_tts_cancel_requested: Arc<Mutex<bool>>,
     translation_tts_cancel_requested: Arc<Mutex<bool>>,
-}
-
-/// Helper macro to lock mutex with consistent error handling
-macro_rules! lock_mutex {
-    ($mutex:expr) => {
-        $mutex.lock().expect("Mutex poisoned")
-    };
 }
 
 impl TranslateApp {

@@ -3,17 +3,11 @@
 //! This module provides audio playback functionality for different platforms.
 //! It supports Windows, macOS, and Linux with appropriate audio players.
 
+use crate::lock_mutex;
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
-/// Helper macro to lock mutex with consistent error handling
-macro_rules! lock_mutex {
-    ($mutex:expr) => {
-        $mutex.lock().expect("Mutex poisoned")
-    };
-}
 
 /// Playback state for audio player
 #[derive(Debug, Clone, PartialEq, Default)]

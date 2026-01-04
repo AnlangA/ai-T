@@ -7,19 +7,13 @@ mod player;
 
 pub use player::{AudioPlayer, PlaybackState};
 
+use crate::lock_mutex;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-
-/// Helper macro to lock mutex with consistent error handling
-macro_rules! lock_mutex {
-    ($mutex:expr) => {
-        $mutex.lock().expect("Mutex poisoned")
-    };
-}
 
 /// Cache index entry for persistence
 #[derive(Debug, Clone, Serialize, Deserialize)]
