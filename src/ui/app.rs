@@ -563,9 +563,9 @@ impl eframe::App for TranslateApp {
             self.sidebar.ui(ctx, self.is_translating);
 
         if let Some(api_key) = api_key_to_save {
-            self.config.api_key = api_key.clone();
+            self.config.api_key = api_key;
         }
-        self.config.target_language = self.sidebar.get_target_language().clone();
+        self.config.target_language = self.sidebar.get_target_language();
 
         if translate_requested {
             let api_key = self.sidebar.get_api_key();
