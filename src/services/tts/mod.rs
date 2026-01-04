@@ -3,15 +3,9 @@
 //! This module provides text-to-speech functionality using the text2audio crate.
 //! It handles conversion of text to audio files with configurable voice, speed, and volume.
 
+use crate::lock_mutex;
 use std::sync::{Arc, Mutex};
 use text2audio::{Model, Text2Audio, Voice};
-
-/// Helper macro to lock mutex with consistent error handling
-macro_rules! lock_mutex {
-    ($mutex:expr) => {
-        $mutex.lock().expect("Mutex poisoned")
-    };
-}
 
 /// TTS configuration parameters
 #[derive(Debug, Clone)]

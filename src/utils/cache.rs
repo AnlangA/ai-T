@@ -3,18 +3,12 @@
 //! This module provides in-memory and persistent caching of translations
 //! to avoid redundant API calls for previously translated text.
 
+use crate::lock_mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-/// Helper macro to lock mutex with consistent error handling
-macro_rules! lock_mutex {
-    ($mutex:expr) => {
-        $mutex.lock().expect("Mutex poisoned")
-    };
-}
 
 /// A cache entry containing translated text and optional keyword analysis the translated text
 #[derive(Debug, Clone, Serialize, Deserialize)]
